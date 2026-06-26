@@ -17,9 +17,12 @@ spec:
           image: predictive-agent:latest
           imagePullPolicy: IfNotPresent
           env:
-            # El GROQ_API_KEY mte3na - nhotiha directement houni (kima e-bqiya)
+            # El GROQ_API_KEY mte3na - jey men Kubernetes Secret
             - name: GROQ_API_KEY
-              value: "YOUR_GROQ_API_KEY_HERE"
+              valueFrom:
+                secretKeyRef:
+                  name: groq-secret
+                  key: groq_api_key
             - name: GROQ_MODEL
               value: "llama-3.3-70b-versatile"
           ports:
