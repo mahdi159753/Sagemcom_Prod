@@ -1,0 +1,281 @@
+<div class="page-container">
+  
+  <div class="header-section">
+    <div class="header-text-container">
+      <h1 class="page-title">Downtime Tracking</h1>
+      <p class="page-subtitle">Monitor production interruptions and system availability in real-time.</p>
+    </div>
+    <button class="btn-primary btn-glow modern-shadow" (click)="openAddModal()">
+      <i class="ph ph-warning-circle text-lg"></i> Declare Downtime
+    </button>
+  </div>
+
+  <!-- STATS HUB (Dynamic) - Glassmorphism Style -->
+  <div class="stats-grid" *ngIf="stats">
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-blue-glow">
+        <i class="ph ph-clock stat-icon text-blue"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Today's Downtime</p>
+        <h3 class="stat-value counter">{{ stats.today || '0m' }}</h3>
+        <p class="stat-trend" [ngClass]="stats.todayIsUp ? 'trend-up text-red' : 'trend-down text-green'">
+          <i [class]="stats.todayIsUp ? 'ph ph-trend-up' : 'ph ph-trend-down'"></i> {{ stats.todayChange || '0%' }} vs yesterday
+        </p>
+      </div>
+    </div>
+    
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-orange-glow">
+        <i class="ph ph-calendar-blank stat-icon text-orange"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">This Week</p>
+        <h3 class="stat-value counter">{{ stats.thisWeek || '0m' }}</h3>
+        <p class="stat-trend" [ngClass]="stats.weekIsUp ? 'trend-up text-red' : 'trend-down text-green'">
+          <i [class]="stats.weekIsUp ? 'ph ph-trend-up' : 'ph ph-trend-down'"></i> {{ stats.weekChange || '0%' }} vs last week
+        </p>
+      </div>
+    </div>
+    
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-purple-glow">
+        <i class="ph ph-calendar-plus stat-icon text-purple"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">This Month</p>
+        <h3 class="stat-value counter">{{ stats.thisMonth || '0m' }}</h3>
+        <p class="stat-trend" [ngClass]="stats.monthIsUp ? 'trend-up text-red' : 'trend-down text-green'">
+          <i [class]="stats.monthIsUp ? 'ph ph-trend-up' : 'ph ph-trend-down'"></i> {{ stats.monthChange || '0%' }} vs last month
+        </p>
+      </div>
+    </div>
+
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-green-glow">
+        <i class="ph ph-chart-line-up stat-icon text-green"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Daily Avg (Last 30d)</p>
+        <h3 class="stat-value counter">{{ stats.avgPerDay || '0m' }}</h3>
+        <p class="stat-trend" [ngClass]="stats.avgIsUp ? 'trend-up text-red' : 'trend-down text-green'">
+          <i [class]="stats.avgIsUp ? 'ph ph-trend-up' : 'ph ph-trend-down'"></i> {{ stats.avgChange || '0%' }} vs previous 30d
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filters-bar glass-card">
+    <div class="status-filter">
+      <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilter()" class="custom-select filter-select">
+        <option value="all">Any Status</option>
+        <option value="ongoing">Ongoing</option>
+        <option value="resolved">Resolved</option>
+      </select>
+    </div>
+    <div class="ml-auto text-muted text-sm my-auto">
+      Showing {{ filtered.length }} events
+    </div>
+  </div>
+
+  <!-- DOWNTIME EVENTS GRID -->
+  <div class="products-grid">
+    <div class="product-card glass-card hover-lift event-card" *ngFor="let g of groupedDowntimes" (click)="openDetailsModal(g)" style="cursor: pointer;">
+      <ng-container *ngIf="g.latestEvent as e">
+        <div class="card-header border-b">
+          <div class="badge-group">
+            <span class="badge badge-glow" [ngClass]="getStatusClass(e.statut)">
+              <i class="ph ph-record" *ngIf="e.statut === 'ONGOING'"></i>
+              <i class="ph ph-check-circle" *ngIf="e.statut === 'RESOLVED'"></i>
+              {{ e.statut || 'N/A' }}
+            </span>
+            <span class="badge badge-glow ms-2" [ngClass]="getSeverityClass(e.severity)">
+              {{ e.severity || 'UNKNOWN' }}
+            </span>
+            <div class="modern-count-indicator" *ngIf="g.count > 1">
+              <i class="ph ph-files"></i>
+              <span>{{ g.count }} arrêts</span>
+            </div>
+          </div>
+          
+          <div class="actions">
+            <button *ngIf="e.statut === 'ONGOING'" class="action-btn resolve-btn" (click)="resolveDowntime(e.id); $event.stopPropagation()" title="Resolve">
+              <i class="ph ph-check text-green"></i> Resolve
+            </button>
+            <button class="action-btn" style="color: #ef4444; background: rgba(239, 68, 68, 0.1);" (click)="deleteDowntime(e.id); $event.stopPropagation()" title="Delete">
+              <i class="ph ph-trash"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="product-title-group">
+            <h3 class="product-name">{{ e.ligne }} <span class="text-muted font-normal text-sm" style="opacity: 0.8;">– {{ e.type }}</span></h3>
+          </div>
+          <div class="product-meta mt-3">
+            <div class="meta-pill"><i class="ph ph-package"></i> <span>{{ e.produit || 'N/A' }}</span></div>
+            <div class="meta-pill"><i class="ph ph-user"></i> <span>{{ e.operateur || 'N/A' }}</span></div>
+          </div>
+          <div class="product-desc-modern mt-3">
+            <i class="ph ph-text-align-left desc-icon"></i>
+            <div class="desc-text">{{ e.description || 'Aucune description fournie.' }}</div>
+          </div>
+        </div>
+
+        <div class="card-footer">
+          <div class="metrics">
+            <div class="metric">
+              <span class="metric-val text-sm">{{ e.dateStr }}</span>
+              <span class="metric-lbl">Started</span>
+            </div>
+            <div class="metric text-right">
+              <span class="metric-val text-sm font-bold" [class.text-red]="e.statut === 'ONGOING'">
+                 <i class="ph ph-clock" *ngIf="e.statut === 'ONGOING'"></i> {{ e.duration }}
+              </span>
+              <span class="metric-lbl">Duration</span>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+
+  <div class="empty-state glass-card" *ngIf="groupedDowntimes.length === 0">
+    <div class="empty-icon-ring">
+      <i class="ph ph-check-circle text-green font-size-xl"></i>
+    </div>
+    <h3>No downtimes found</h3>
+    <p>Everything is running smoothly! No downtimes match your criteria.</p>
+  </div>
+</div>
+
+<!-- CREATE/EDIT MODAL -->
+<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+  <div class="modal-content glass-modal bounce-in" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <i class="ph ph-warning-circle modal-title-icon text-orange"></i>
+        <h2>{{ isEditing ? 'Edit Downtime' : 'Declare Downtime' }}</h2>
+      </div>
+      <button class="close-btn" (click)="closeModal()"><i class="ph ph-x"></i></button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="form-grid">
+         
+        <div class="form-group">
+          <label>Production Line <span class="text-red">*</span></label>
+          <select [(ngModel)]="currentDowntime.ligne" class="custom-select">
+            <option [value]="undefined" disabled selected>Select a line...</option>
+            <option *ngFor="let l of [1,2,3,4,5,6,7,8]" value="Ligne {{l}}">Ligne {{l}}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Product <span class="text-red">*</span></label>
+          <select [(ngModel)]="currentDowntime.produit" class="custom-select">
+            <option [value]="undefined" disabled selected>Select a product...</option>
+            <option *ngFor="let p of produits" [value]="p.name">{{ p.name }}</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Downtime Type <span class="text-red">*</span></label>
+          <select [(ngModel)]="currentDowntime.type" class="custom-select">
+            <option value="Machine Failure">Machine Failure</option>
+            <option value="Material Shortage">Material Shortage</option>
+            <option value="Planned Maintenance">Planned Maintenance</option>
+            <option value="Changeover">Changeover</option>
+            <option value="Quality Issue">Quality Issue</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Severity</label>
+          <select [(ngModel)]="currentDowntime.severity" class="custom-select">
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+            <option value="CRITICAL">Critical</option>
+          </select>
+        </div>
+
+        <div class="form-group full-width">
+          <label>Operator <span class="text-red">*</span></label>
+          <input type="text" [(ngModel)]="currentDowntime.operateur" class="custom-input" placeholder="e.g. John Doe">
+        </div>
+
+        <div class="form-group full-width">
+          <label>Description / Cause</label>
+          <textarea [(ngModel)]="currentDowntime.description" class="custom-input" rows="3" placeholder="Provide a brief description of the issue..."></textarea>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="closeModal()">Cancel</button>
+      <button class="btn-primary" (click)="saveDowntime()">
+        <i class="ph ph-check"></i> Submit
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAILS HISTORY MODAL -->
+<div class="modal-overlay" *ngIf="showDetailsModal && selectedGroup" (click)="closeDetailsModal()">
+  <div class="modal-content glass-modal bounce-in details-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <i class="ph ph-clock-counter-clockwise modal-title-icon text-blue"></i>
+        <h2>Historique : {{ selectedGroup.ligne }}</h2>
+      </div>
+      <button class="close-btn" (click)="closeDetailsModal()"><i class="ph ph-x"></i></button>
+    </div>
+    
+    <div class="modal-body details-body">
+      <div class="summary-card glass-card mb-4">
+        <p class="summary-text">Cette ligne a un total de <strong>{{ selectedGroup.count }} événement(s)</strong>.</p>
+      </div>
+      
+      <div class="timeline">
+        <div class="timeline-item" *ngFor="let ev of selectedGroup.events">
+          <div class="timeline-marker" [ngClass]="ev.statut === 'ONGOING' ? 'marker-red animate-pulse' : 'marker-green'"></div>
+          <div class="timeline-content glass-card">
+            <div class="flex justify-between items-start mb-2">
+              <h4 class="font-bold text-lg m-0">{{ ev.type }}</h4>
+              <span class="badge badge-glow" [ngClass]="getStatusClass(ev.statut)">
+                {{ ev.statut || 'N/A' }}
+              </span>
+            </div>
+            <div class="product-meta mt-2 mb-3">
+              <div class="meta-pill"><i class="ph ph-package"></i> <span>{{ ev.produit || 'N/A' }}</span></div>
+              <div class="meta-pill"><i class="ph ph-user"></i> <span>{{ ev.operateur || 'N/A' }}</span></div>
+            </div>
+            <div class="product-desc-modern mt-3">
+              <i class="ph ph-text-align-left desc-icon"></i>
+              <div class="desc-text">{{ ev.description || 'Aucune description fournie.' }}</div>
+            </div>
+            
+            <div class="flex justify-between mt-4 text-xs font-bold text-muted uppercase tracking-wider">
+              <span><i class="ph ph-calendar"></i> {{ ev.dateStr }}</span>
+              <span [class.text-red]="ev.statut === 'ONGOING'"><i class="ph ph-clock"></i> Durée: {{ ev.duration }}</span>
+            </div>
+            
+            <div class="actions timeline-actions mt-3 pt-3 border-t flex justify-end">
+              <button *ngIf="ev.statut === 'ONGOING'" class="action-btn resolve-btn" (click)="resolveDowntime(ev.id); closeDetailsModal()" title="Resolve">
+                <i class="ph ph-check text-green"></i> Resolve
+              </button>
+              <button class="action-btn" style="color: #ef4444; background: rgba(239, 68, 68, 0.1);" (click)="deleteDowntime(ev.id); closeDetailsModal()" title="Delete">
+                <i class="ph ph-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+

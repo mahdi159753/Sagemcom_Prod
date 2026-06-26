@@ -1,0 +1,188 @@
+<div class="page-container">
+
+  <div class="header-section">
+    <div class="header-text-container">
+      <h1 class="page-title">TRG/TRS Monitoring</h1>
+      <p class="page-subtitle">Real-time efficiency from Daily Production data</p>
+    </div>
+    <div class="header-actions">
+      <select [(ngModel)]="chantier" (ngModelChange)="onFilterChange()" class="custom-select">
+        <option *ngFor="let c of chantiers" [value]="c">{{ c }}</option>
+      </select>
+      <select [(ngModel)]="dateRange" (ngModelChange)="onFilterChange()" class="custom-select">
+        <option value="today">Today</option>
+        <option value="7days">Last 7 days</option>
+        <option value="30days">Last 30 days</option>
+      </select>
+      <button class="btn-outline" (click)="exportToExcel()">
+        <i class="ph ph-file-xls text-green"></i> Excel
+      </button>
+      <button class="btn-outline" (click)="exportToPdf()">
+        <i class="ph ph-file-pdf text-red"></i> PDF
+      </button>
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+    
+    <!-- LEFT: HERO OEE DIAL -->
+    <div class="glass-card hero-dial-card">
+      <div class="card-header text-center border-b border-light pb-3 mb-4">
+        <h2 class="m-0 fw-bold" style="color: #0f172a; font-size: 18px;">Master Efficiency</h2>
+        <p class="text-muted text-sm m-0">{{ chantier }} - {{ dateRange }}</p>
+      </div>
+
+      <div class="gauge-wrap">
+        <div class="gauge-container">
+          <svg width="280" height="280" viewBox="0 0 280 280">
+            <!-- Background track -->
+            <circle cx="140" cy="140" r="120" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="20"/>
+            <defs>
+              <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"  stop-color="#ef4444"/>
+                <stop offset="50%" stop-color="#f59e0b"/>
+                <stop offset="100%" stop-color="#10b981"/>
+              </linearGradient>
+            </defs>
+            <!-- Foreground track -->
+            <circle cx="140" cy="140" r="120" fill="none"
+                    stroke="url(#gaugeGrad)" stroke-width="20"
+                    [attr.stroke-dasharray]="gaugeStrokeDasharray"
+                    [attr.stroke-dashoffset]="gaugeStrokeDashoffset"
+                    stroke-linecap="round" transform="rotate(-90 140 140)"/>
+          </svg>
+          <div class="gauge-center">
+            <div class="gauge-val" [style.color]="getTrgBadgeColor(trgValue)">
+              {{ trgValue | number:'1.0-1' }}<span class="pct">%</span>
+            </div>
+            <div class="gauge-lbl text-muted fw-bold">OEE (TRG)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TRS Info below gauge -->
+      <div class="trs-info-box mt-4" *ngIf="kpi?.trs != null">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="text-sm fw-bold text-muted">TRS (Equipment Rate)</span>
+          <span class="fw-bold" style="color: #0f172a;">{{ kpi!.trs | number:'1.0-1' }}%</span>
+        </div>
+        <div class="progress-bar-thin">
+           <div class="progress-fill" [style.width.%]="kpi!.trs" [style.background]="getTrgBadgeColor(kpi!.trs)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: THE 3 PILLARS -->
+    <div class="pillars-container">
+      
+      <!-- AVAILABILITY -->
+      <div class="glass-card pillar-card hover-lift">
+        <div class="pillar-header d-flex justify-content-between align-items-start">
+          <div>
+            <div class="pillar-title text-muted fw-bold text-uppercase">Availability</div>
+            <div class="pillar-val" style="color: #2E75B6;">{{ kpi?.disponibilite != null ? (kpi!.disponibilite | number:'1.0-1') + '%' : 'N/A' }}</div>
+          </div>
+          <div class="icon-wrap bg-blue-glow"><i class="ph ph-clock text-blue"></i></div>
+        </div>
+        <div class="pillar-trend mt-2 d-flex align-items-center gap-2">
+          <span class="badge" [ngClass]="getTrendClass(kpi?.disponibiliteTrend)" style="background: rgba(0,0,0,0.04);">
+            {{ getTrendArrow(kpi?.disponibiliteTrend) }} {{ formatTrend(kpi?.disponibiliteTrend) }}
+          </span>
+          <span class="text-xs text-muted">vs Last Period</span>
+        </div>
+        <div class="mt-3"><canvas #availCanvas class="mini-chart"></canvas></div>
+      </div>
+
+      <!-- PERFORMANCE -->
+      <div class="glass-card pillar-card hover-lift">
+        <div class="pillar-header d-flex justify-content-between align-items-start">
+          <div>
+            <div class="pillar-title text-muted fw-bold text-uppercase">Performance</div>
+            <div class="pillar-val" style="color: #DC3545;">{{ kpi?.performance != null ? (kpi!.performance | number:'1.0-1') + '%' : 'N/A' }}</div>
+          </div>
+          <div class="icon-wrap bg-red-glow"><i class="ph ph-lightning text-red"></i></div>
+        </div>
+        <div class="pillar-trend mt-2 d-flex align-items-center gap-2">
+          <span class="badge" [ngClass]="getTrendClass(kpi?.performanceTrend)" style="background: rgba(0,0,0,0.04);">
+            {{ getTrendArrow(kpi?.performanceTrend) }} {{ formatTrend(kpi?.performanceTrend) }}
+          </span>
+          <span class="text-xs text-muted">vs Last Period</span>
+        </div>
+        <div class="mt-3"><canvas #perfCanvas class="mini-chart"></canvas></div>
+      </div>
+
+      <!-- QUALITY -->
+      <div class="glass-card pillar-card hover-lift">
+        <div class="pillar-header d-flex justify-content-between align-items-start">
+          <div>
+            <div class="pillar-title text-muted fw-bold text-uppercase">Quality (FPY)</div>
+            <div class="pillar-val" style="color: #28A745;">{{ kpi?.qualite != null ? (kpi!.qualite | number:'1.0-1') + '%' : 'N/A' }}</div>
+          </div>
+          <div class="icon-wrap bg-green-glow"><i class="ph ph-shield-check text-green"></i></div>
+        </div>
+        <div class="pillar-trend mt-2 d-flex align-items-center gap-2">
+          <span class="badge" [ngClass]="getTrendClass(kpi?.qualiteTrend)" style="background: rgba(0,0,0,0.04);">
+            {{ getTrendArrow(kpi?.qualiteTrend) }} {{ formatTrend(kpi?.qualiteTrend) }}
+          </span>
+          <span class="text-xs text-muted">vs Last Period</span>
+        </div>
+        <div class="mt-3"><canvas #qualCanvas class="mini-chart"></canvas></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MAIN TREND CHART -->
+  <div class="glass-card chart-card mb-4 mt-4">
+    <div class="card-header border-b border-light px-4 py-3 d-flex justify-content-between align-items-center bg-light bg-opacity-25 rounded-top">
+      <h3 class="m-0 fw-bold" style="color: #0f172a; font-size: 16px;">
+        <i class="ph ph-trend-up text-primary me-2"></i> Historical Performance Trend
+      </h3>
+    </div>
+    <div class="card-body p-4" style="height: 380px;">
+      <canvas #mainChartCanvas></canvas>
+    </div>
+  </div>
+
+  <!-- HISTORICAL TABLE -->
+  <div class="glass-card history-card">
+    <div class="card-header px-4 py-3 border-b border-light bg-light bg-opacity-25 rounded-top">
+      <h3 class="card-title m-0 fw-bold" style="color: #0f172a; font-size: 16px;">Raw Data Log</h3>
+    </div>
+    <div class="card-body p-0">
+      <div *ngIf="history.length === 0" class="text-muted" style="padding:40px;text-align:center;font-size:15px">
+        <i class="ph ph-database text-muted" style="font-size: 32px; opacity: 0.5; margin-bottom: 8px;"></i>
+        <br>No data available for this period.
+      </div>
+      <table class="data-table" *ngIf="history.length > 0">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Shift</th>
+            <th>Units Produced</th>
+            <th>OEE (TRG)</th>
+            <th>TRS</th>
+            <th>Downtime Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of history">
+            <td class="fw-bold" style="color:#334155;">{{ row.date }}</td>
+            <td class="text-muted">{{ row.shift }}</td>
+            <td class="fw-bold">{{ row.produced | number }}</td>
+            <td>
+              <span class="trg-badge" [style.background]="getTrgBadgeColor(row.trg)">
+                {{ row.trg }}%
+              </span>
+            </td>
+            <td><strong style="color:#0f172a">{{ row.trs }}%</strong></td>
+            <td class="text-muted font-mono d-flex align-items-center gap-1">
+              <i class="ph ph-clock-counter-clockwise"></i> {{ row.downtime }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,67 @@
+🔮 Predictive Downtime Agent
+What it does: Analyzes historical downtime patterns (by ligne, chantier, type, severity, time-of-day) and predicts when and where the next downtime is likely to occur.
+
+How it works:
+
+Trains on your downtimes table (startTime, endTime, type, ligne, chantier, severity)
+Uses time-series patterns: "CMS2 Ligne 3 has a mechanical failure every ~12 days"
+Sends a proactive WebSocket notification: "⚠️ High probability of downtime on Ligne 3 — CMS2 within the next 48h based on historical patterns"
+Tech: Python microservice (scikit-learn / Prophet) called via REST from Spring Boot, or integrate directly with Spring Boot using DJL (Deep Java Library).
+
+Why it's great for your project: You already have the full downtime lifecycle (ONGOING → RESOLVED) with timestamps. This is a natural extension.
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+. Python AI Microservice (The Brain)
+I created a new Python microservice located in predictive-agent/. It uses FastAPI to expose a REST endpoint and scikit-learn to calculate predictive statistics.
+
+It looks at the Mean Time Between Failures (MTBF) for each production line.
+It uses an exponential distribution probability model to predict the likelihood of a failure in the next 48 hours.
+It uses a Random Forest Classifier to guess the most likely type of failure based on historical patterns (e.g., day of the week and hour).
+2. Spring Boot Integration (The Bridge)
+Created PredictiveAgentClient to send your historical downtime data to the Python AI.
+Updated DowntimeController to expose a new endpoint /api/v1/downtimes/predict that the Angular frontend can call.
+3. Angular Frontend (The UI)
+Updated the DashboardComponent to fetch AI predictions.
+Added a beautiful, glassmorphism AI Predictive Insights card next to your Recent Alerts. It will automatically show alerts like: ⚠️ 85% probability of MECHANICAL failure on Ligne 3.
+///////////////////////////////////////////////////////////////////
+Tech: FastAPI, scikit-learn, pandas
+Logic: It exposes a /predict POST endpoint. It takes in historical downtime data, groups it by line, calculates MTBF (Mean Time Between Failures), and uses an exponential distribution to forecast failure probabilities. It also uses a RandomForestClassifier to guess the most likely type of the next failure based on the day of the week and hour.
+
+NC-AGENT
+1. The Goal of the Agent
+When a user begins typing the description of a new Non-Conformity (NC), the AI's goal is to instantly search the history of the factory, find the most similar past problems, and answer three questions:
+
+What was the likely cause of this in the past?
+What action fixed it last time?
+Who is the best person to assign this to?
+2. The Data Flow (Spring Boot)
+Debouncing: As the user types the description in the Angular frontend, the system waits for them to stop typing for 1 second (this is called "debouncing"). This prevents spamming the server with requests for every keystroke.
+Fetching History: Once the user stops typing, the Angular frontend sends the current description and localization to the Spring Boot backend (/api/v1/ncs/analyze).
+Filtering for Success: The Spring Boot backend retrieves historical NCs from the database. Crucially, it only fetches NCs with the status CLOTUREE (Closed). This ensures the AI only learns from problems that were successfully resolved, ignoring ongoing or abandoned issues.
+Proxy to Python: Spring Boot bundles the new description, the localization, and the entire list of closed NCs, and sends them to the Python AI Microservice.
+3. The Core AI Logic (Python & TF-IDF)
+Inside the Python microservice (predictive-agent/main.py), the AI uses Scikit-Learn to perform Natural Language Processing.
+
+Step A: Text Preparation: The AI combines the localisation (e.g., "Ligne 1 - Poste 3") and the description (e.g., "Défaut de soudure sur le connecteur") into a single block of text for every historical NC, as well as for the new incoming NC.
+Step B: TF-IDF Vectorization: It uses a TfidfVectorizer (Term Frequency-Inverse Document Frequency). This algorithm converts words into mathematical vectors.
+It gives high weight to unique, highly specific words (like "soudure", "connecteur", "surchauffe").
+It gives low weight to common, unhelpful words (like "le", "de", "sur").
+Step C: Cosine Similarity: Once all the text is converted into numbers, the AI uses cosine_similarity to calculate the mathematical angle between the new NC and every historical NC. A score of 1.0 (100%) means they are exactly identical. A score of 0.0 (0%) means they share no relevant words.
+Step D: Top Matches: The AI sorts the history by the highest similarity scores and filters out any matches below a 10% threshold. It takes the Top 5 most similar past NCs.
+4. Generating the Recommendations
+Once the AI has the Top 5 similar past NCs, it extracts the final recommendations:
+
+Cause Probable (Probable Cause): The AI takes a snippet of the description from the absolute best match to explain why it made this connection (e.g., "Similaire à un problème passé: Composant cassé lors de l'insertion...").
+Action Recommandée (Recommended Action): The AI looks at the actionCorrective field of the Top 5 matches. It calculates the mode (the most frequently occurring action). For example, if 3 out of the 5 similar past issues were fixed by "Recalibration de la machine", it confidently recommends "Recalibration de la machine".
+Assigné Suggéré (Recommended Assignee): The AI tries to find who is the most efficient at solving this specific type of problem.
+It looks at the dates (dateDeclaration and dateCloture) of the top matches to calculate the exact duration it took to solve them.
+It recommends the assignee who had the shortest resolution time (the fastest worker for this specific issue).
+If the dates are invalid or missing, it falls back to recommending the assignee who most frequently worked on these types of issues.
+Indice de Confiance (Confidence Score): This is simply the cosine similarity score of the best match converted into a percentage (e.g., 85%).
+5. Applying the Output
+The Python agent returns these 4 pieces of data back to Spring Boot, which forwards them to Angular. The UI displays them in the new Premium Glassmorphism widget. If the user likes the recommendation, they click "Appliquer", and the Angular component instantly copies the AI's recommended action and assignee into the form fields, saving the user significant manual entry time!
+////////////////////////////FI GUIDE DESCRIBE ///////////////////////////////////////////////
+Voici un paragraphe descriptif qui résume ce que nous avons mis en place avec l'Option A :
+
+« Pour garantir une fiabilité totale dans l'affichage des instructions, nous avons abandonné l'extraction individuelle des images au profit d'une stratégie de rendu de page complète (Option A). Le système utilise désormais un pipeline automatisé en arrière-plan qui pilote nativement Microsoft Excel (via win32com) pour convertir chaque onglet (Feuil) du document en un fichier PDF parfaitement formaté, qui est ensuite transformé en une image PNG haute résolution. Au lieu de tenter d'associer péniblement des petites images flottantes à des opérations spécifiques, toutes les opérations d'un même onglet sont automatiquement liées à l'image complète de cet onglet. Pour l'opérateur, cela se traduit par l'affichage d'une réplique visuelle 100% fidèle à la mise en page d'origine du fichier Excel, éliminant ainsi définitivement les problèmes d'images manquantes, décalées ou tronquées. »

@@ -1,0 +1,19 @@
+Indicateurs;Objectif;Ligne 1;Ligne 2;Ligne 3;Ligne 4;Ligne 5;Ligne 6;Ligne 7;Ligne 8;Global
+Quantites Produites;1989;80;1000;100;;;;;;1180
+TRG (%);85;89;77;65;;;;;;77
+Objectif Planning (%);100;;;;;;;;;
+Efficience / Ecart DMH;0;;;;;;;;;
+Depassement Charte;0;;;;;;;;;
+FOR (%);95;;;;;;;;;
+AQL;100;;;;;;;;;
+AQC;100;;;;;;;;;
+Tx Arrachement (%);2;;;;;;;;;
+Mur Qualite;0;;;;;;;;;
+QRQC / Tx Cosmetique (%);0.5;;;;;;;;;
+FPY Vision / FCT2 (%);95;;;;;;;;;
+FPY NFT/BWR/SYNCHRO (%);95;;;;;;;;;
+FPY Bouton / NFT (%);95;;;;;;;;;
+FPY Telechargement (%);95;;;;;;;;;
+Encours Depannage;0;;;;;;;;;
+Accident de Travail;0;;;;;;;;;
+AQF;100;;;;;;;;;

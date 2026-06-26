@@ -1,0 +1,122 @@
+<div class="daily-page">
+
+  <!-- TOP BAR -->
+  <div class="dp-topbar">
+    <div class="dp-topbar-left">
+      <div class="sagemcom-logo">SAGEMCOM</div>
+      <div class="dp-controls">
+        <div class="control-group">
+          <label>Chantier :</label>
+          <select [(ngModel)]="chantier" (change)="fetchData()">
+            <option *ngFor="let c of chantiers" [value]="c">{{ c }}</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>Date :</label>
+          <input type="date" [(ngModel)]="selectedDate" (change)="fetchData()" />
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <button *ngIf="authService.isAdmin()" class="btn btn-outline" style="color:#DC3545; border-color:#DC3545;" (click)="deleteDayData()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        Supprimer données
+      </button>
+      <button *ngIf="authService.isAdmin()" class="btn btn-outline" (click)="clearTable()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        Vider
+      </button>
+      <button class="btn btn-outline" (click)="downloadCSV()" style="color: #2E75B6; border-color: #2E75B6;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        CSV
+      </button>
+      <button *ngIf="authService.isAdmin()" class="btn btn-primary" (click)="onSave()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Sauvegarder
+      </button>
+    </div>
+  </div>
+
+  <!-- AI INSIGHTS WIDGET -->
+  <div class="ai-insights-widget" *ngIf="oeePredictions.length > 0">
+    <div class="ai-header">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <h3>AI Predictive Insights (TRG Tomorrow)</h3>
+      <span class="badge badge-pulse" *ngIf="isPredicting">Analysing...</span>
+    </div>
+    
+    <div class="ai-cards-container">
+      <div class="ai-card" *ngFor="let pred of oeePredictions" [ngClass]="{'alert-danger': pred.predictedTrg < 85, 'alert-success': pred.predictedTrg >= 85}">
+        <div class="ai-card-top">
+          <span class="ligne-badge">Ligne {{ pred.ligne }}</span>
+          <span class="pred-trg">{{ pred.predictedTrg }}%</span>
+        </div>
+        <div class="ai-card-body" *ngIf="pred.predictedTrg < 85">
+          <div class="root-cause">
+            <strong>Cause probable:</strong> {{ pred.rootCauseIndicator }}
+          </div>
+          <div class="recommendation">
+            <strong>Action:</strong> {{ pred.recommendation }}
+          </div>
+        </div>
+        <div class="ai-card-body" *ngIf="pred.predictedTrg >= 85">
+          <div class="root-cause success-text">
+            Performance nominale attendue.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE CARD -->
+  <div class="card table-card">
+    <div class="table-card-header">
+      Indicateur Chantier – <strong>{{ chantier }}</strong>
+    </div>
+
+    <div class="table-scroll">
+      <table class="dp-table">
+        <thead>
+          <tr>
+            <th class="col-indicator">Indicateurs</th>
+            <th class="col-objectif">Objectif</th>
+            <th *ngFor="let l of lines">Ligne {{ l }}</th>
+            <th class="col-global">Global</th>
+            <th *ngIf="authService.isAdmin()" style="width: 50px; text-align:center;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of rows; let i = index" [class.row-even]="i % 2 === 0">
+            <td class="td-name">{{ row.name }}</td>
+            <td class="td-objectif">
+              <input type="number" [(ngModel)]="row.objectif" [readonly]="!authService.isAdmin()" class="cell-input" style="color: #065F46; font-weight: bold; background: transparent; width: 100%; border: none; text-align: center;" />
+            </td>
+            <td *ngFor="let v of row.vals; let j = index; trackBy: trackByIndex" class="td-input" [ngClass]="getCellClass(row.vals[j], row.objectif, row.lowerBetter)">
+              <input type="text" 
+                     class="cell-input"
+                     [(ngModel)]="row.vals[j]"
+                     [readonly]="!authService.isAdmin()"
+                     (ngModelChange)="onCellChange(i, j, $event)"
+                     (keydown.enter)="onSave()"
+                     placeholder="-">
+            </td>
+            <td class="td-global" [ngClass]="getCellClass(row.global, row.objectif, row.lowerBetter)">
+              {{ displayVal(row.global) }}
+            </td>
+            <td *ngIf="authService.isAdmin()" style="text-align:center;">
+              <button class="icon-btn-danger" (click)="deleteRowData(i)" title="Supprimer cette ligne">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-legend">
+      <span class="legend-item-g"><span style="color:#28A745;font-weight:700">■</span> Objectif atteint</span>
+      <span class="legend-item-g"><span style="color:#DC3545;font-weight:700">■</span> Sous objectif</span>
+    </div>
+  </div>
+
+</div>

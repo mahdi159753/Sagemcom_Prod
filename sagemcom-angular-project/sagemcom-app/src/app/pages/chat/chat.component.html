@@ -1,0 +1,116 @@
+<div class="page-container">
+  <div class="header-section">
+    <div class="header-text-container">
+      <h1 class="page-title">Sagemcom Messenger</h1>
+      <p class="page-subtitle">Communicate with your team in real-time</p>
+    </div>
+  </div>
+
+  <div class="chat-container glass-card">
+    
+    <!-- Sidebar -->
+    <div class="chat-sidebar">
+      <div class="sidebar-header">
+        <div class="search-box">
+          <i class="ph ph-magnifying-glass search-icon"></i>
+          <input type="text" class="search-input" placeholder="Search contacts..." [(ngModel)]="searchQuery" (input)="filterContacts()">
+        </div>
+      </div>
+      
+      <div class="contact-list">
+        <div class="contact-item" *ngFor="let contact of filteredContacts" 
+             [class.active]="activeContact?.id === contact.id"
+             (click)="selectContact(contact)">
+          <div class="avatar">
+            {{ contact.firstname.charAt(0) }}{{ contact.lastname.charAt(0) }}
+            <span class="status-dot" [class.online]="isOnline(contact.lastActive)"></span>
+          </div>
+          <div class="contact-info">
+            <h4>{{ contact.firstname }} {{ contact.lastname }}</h4>
+            <p>{{ contact.email }}</p>
+          </div>
+          <div class="unread-badge" *ngIf="contact.unreadCount">{{ contact.unreadCount }}</div>
+        </div>
+        
+        <div class="empty-state" *ngIf="filteredContacts.length === 0">
+          <p>No contacts found.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="chat-main">
+      <ng-container *ngIf="activeContact; else noContact">
+        <div class="chat-header">
+          <div class="avatar">
+            {{ activeContact.firstname.charAt(0) }}{{ activeContact.lastname.charAt(0) }}
+            <span class="status-dot" [class.online]="isOnline(activeContact.lastActive)"></span>
+          </div>
+          <div class="header-info">
+            <h2>{{ activeContact.firstname }} {{ activeContact.lastname }}</h2>
+            <p [class.text-green]="isOnline(activeContact.lastActive)">
+              {{ isOnline(activeContact.lastActive) ? 'Online' : 'Offline' }}
+            </p>
+          </div>
+        </div>
+
+        <div class="chat-messages" #scrollMe>
+          <div class="message-wrapper" *ngFor="let msg of messages" 
+               [class.sent]="msg.senderId === currentUserId" 
+               [class.received]="msg.senderId !== currentUserId">
+            <div class="message-bubble" [class.has-attachment]="msg.attachmentUrl">
+              <div class="attachment-preview" *ngIf="msg.attachmentUrl">
+                <img *ngIf="isImage(msg.attachmentUrl)" [src]="msg.attachmentUrl" alt="Attachment" class="chat-image">
+                <a *ngIf="!isImage(msg.attachmentUrl)" [href]="msg.attachmentUrl" target="_blank" class="chat-file-link">
+                  <i class="ph ph-file"></i> View Attachment
+                </a>
+              </div>
+              <span *ngIf="msg.content">{{ msg.content }}</span>
+            </div>
+            <div class="message-time">
+              {{ msg.timestamp | date:'shortTime' }}
+            </div>
+          </div>
+          
+          <div class="empty-chat" *ngIf="messages.length === 0">
+            <div class="empty-icon-ring">
+              <i class="ph ph-chats"></i>
+            </div>
+            <h3>Say Hello!</h3>
+            <p>Start the conversation with {{ activeContact.firstname }}</p>
+          </div>
+        </div>
+
+        <div class="attachment-bar" *ngIf="selectedFile">
+          <div class="file-chip">
+            <i class="ph ph-paperclip"></i> {{ selectedFile.name }}
+            <button class="btn-remove" (click)="removeAttachment()"><i class="ph ph-x"></i></button>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <input type="file" #fileInput (change)="onFileSelected($event)" style="display: none;">
+          <button class="btn-attach" (click)="fileInput.click()">
+            <i class="ph ph-paperclip"></i>
+          </button>
+          <input type="text" placeholder="Type a message..." [(ngModel)]="messageText" (keyup.enter)="sendMessage()" [disabled]="isUploading">
+          <button class="btn-send" (click)="sendMessage()" [disabled]="(!messageText.trim() && !selectedFile) || isUploading">
+            <i class="ph ph-spinner ph-spin" *ngIf="isUploading"></i>
+            <i class="ph ph-paper-plane-right" *ngIf="!isUploading"></i>
+          </button>
+        </div>
+      </ng-container>
+
+      <ng-template #noContact>
+        <div class="empty-state-main">
+          <img src="assets/images/chat-illustration.svg" alt="Select a chat" *ngIf="false"> <!-- Placeholder -->
+          <div class="empty-icon-ring-large">
+            <i class="ph ph-paper-plane-right"></i>
+          </div>
+          <h2>Your Messages</h2>
+          <p>Select a contact from the sidebar to start chatting.</p>
+        </div>
+      </ng-template>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,321 @@
+<div class="page-container">
+  
+  <div class="header-section">
+    <div class="header-text-container">
+      <h1 class="page-title">Production Lines</h1>
+      <p class="page-subtitle">Real-time monitoring and management of all manufacturing physical lines.</p>
+    </div>
+    
+    <div class="header-actions">
+      <button class="btn-outline modern-hover" (click)="loadData()" title="Refresh Data">
+        <i class="ph ph-arrows-clockwise text-lg"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- STATS HUB (Dynamic) - Glassmorphism Style -->
+  <div class="stats-grid">
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-blue-glow">
+        <i class="ph ph-factory stat-icon text-blue"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Total Lines</p>
+        <h3 class="stat-value counter">{{ totalLines }}</h3>
+      </div>
+    </div>
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-green-glow">
+        <i class="ph ph-play-circle stat-icon text-green"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">En Production</p>
+        <h3 class="stat-value counter">{{ activeLines }}</h3>
+      </div>
+    </div>
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-red-glow">
+        <i class="ph ph-stop-circle stat-icon text-red"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Arrêtées</p>
+        <h3 class="stat-value counter">{{ stoppedLines }}</h3>
+      </div>
+    </div>
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper" [ngClass]="avgEfficiency >= 80 ? 'bg-green-glow' : (avgEfficiency >= 60 ? 'bg-orange-glow' : 'bg-red-glow')">
+        <i class="ph ph-chart-line-up stat-icon" [ngClass]="avgEfficiency >= 80 ? 'text-green' : (avgEfficiency >= 60 ? 'text-orange' : 'text-red')"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Avg Efficiency</p>
+        <h3 class="stat-value counter">{{ avgEfficiency }}%</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filters-bar glass-card">
+    <div class="search-box">
+      <i class="ph ph-magnifying-glass search-icon"></i>
+      <input type="text" [(ngModel)]="search" (ngModelChange)="applyFilter()" class="search-input" placeholder="Search line name or code...">
+    </div>
+    <div class="status-filter">
+      <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilter()" class="custom-select filter-select">
+        <option value="all">Any Status</option>
+        <option value="EN_PRODUCTION">En Production</option>
+        <option value="ARRETEE">Arrêtée</option>
+        <option value="CHANGEMENT_SERIE">Changement Série</option>
+      </select>
+    </div>
+    <div class="status-filter">
+      <select [(ngModel)]="productFilter" (ngModelChange)="applyFilter()" class="custom-select filter-select">
+        <option value="all">Any Product</option>
+        <option *ngFor="let p of products" [value]="p.id">{{ p.name }}</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- LINES GRID -->
+  <div class="lines-grid">
+    <div class="line-card glass-card hover-lift" *ngFor="let line of filtered" [ngClass]="{'active-line-glow': line.statut === 'EN_PRODUCTION'}" [style.border-left-color]="getStatutColor(line.statut)">
+      
+      <!-- Card Header -->
+      <div class="card-header border-b">
+        <div class="line-header-info">
+          <div class="line-icon-wrap" [style.background]="getStatutColor(line.statut) + '15'">
+            <i class="ph ph-factory text-2xl" [style.color]="getStatutColor(line.statut)"></i>
+          </div>
+          <div>
+            <h3 class="line-name">{{ line.nom }} <span class="line-code">{{ line.code }}</span></h3>
+            <p class="line-product"><i class="ph ph-package"></i> {{ line.produitNom || 'No Product Assigned' }}</p>
+          </div>
+        </div>
+        
+        <div class="header-right">
+          <span class="badge badge-glow" [style.color]="getStatutColor(line.statut)" [style.background]="getStatutColor(line.statut) + '20'">
+            <i class="ph ph-circle-notch ph-spin" *ngIf="line.statut === 'EN_PRODUCTION'"></i>
+            <i class="ph ph-warning-octagon" *ngIf="line.statut === 'ARRETEE'"></i>
+            <i class="ph ph-arrows-clockwise" *ngIf="line.statut === 'CHANGEMENT_SERIE'"></i>
+            {{ getStatutLabel(line.statut) }}
+          </span>
+          
+          <div class="actions" *ngIf="authService.hasRole('ADMIN', 'RESPONSABLE_PRODUCTION')">
+            <button class="action-btn edit" (click)="openEditModal(line)" title="Edit">
+              <i class="ph ph-pencil-simple"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Body -->
+      <div class="card-body">
+        
+        <!-- Workflow Pipeline Vis -->
+        <div class="pipeline-container">
+          <div class="stage">
+            <div class="stage-dot" [style.background]="getStatutColor(line.statut)"></div>
+            <span class="stage-lbl">ASM</span>
+          </div>
+          <div class="pipeline-line" [style.background]="getStatutColor(line.statut) + '50'"></div>
+          <div class="stage">
+            <div class="stage-dot" [style.background]="getStatutColor(line.statut)"></div>
+            <span class="stage-lbl">TST</span>
+          </div>
+          <div class="pipeline-line" [style.background]="getStatutColor(line.statut) + '50'"></div>
+          <div class="stage">
+            <div class="stage-dot" [style.background]="getStatutColor(line.statut)"></div>
+            <span class="stage-lbl">QC</span>
+          </div>
+          <div class="pipeline-line" [style.background]="getStatutColor(line.statut) + '50'"></div>
+          <div class="stage">
+            <div class="stage-dot" [style.background]="getStatutColor(line.statut)"></div>
+            <span class="stage-lbl">EMB</span>
+          </div>
+        </div>
+
+        <div class="metrics-row mt-4">
+          <!-- KPI Gauges -->
+          <div class="kpi-group flex-1">
+             <div class="kpi-block">
+               <span class="kpi-lbl text-muted">TRG</span>
+               <strong class="kpi-val" [style.color]="getTrgColor(line.trg)">{{ line.trg }}<span class="text-xs">%</span></strong>
+             </div>
+             <div class="kpi-block border-l px-2">
+               <span class="kpi-lbl text-muted">TRS</span>
+               <strong class="kpi-val">{{ line.trs }}<span class="text-xs">%</span></strong>
+             </div>
+             <div class="kpi-block border-l px-2">
+               <span class="kpi-lbl text-muted">FPY</span>
+               <strong class="kpi-val" [style.color]="getTrgColor(line.fpy)">{{ line.fpy }}<span class="text-xs">%</span></strong>
+             </div>
+          </div>
+          
+          <!-- Cadence -->
+          <div class="cadence-block flex-1 text-right">
+             <span class="kpi-lbl text-muted">Cadence (U/h)</span>
+             <div class="cadence-val">
+               <strong class="text-xl">{{ line.cadenceReelle }}</strong> 
+               <span class="text-muted text-sm">/ {{ line.cadenceObjectif }}</span>
+             </div>
+             <div class="progress-bar mini-bar mt-1">
+               <div class="progress-fill" [style.width.%]="line.efficiency" [style.background]="getTrgColor(line.efficiency || 0)"></div>
+             </div>
+          </div>
+        </div>
+
+        <!-- Alert Banner if stopped -->
+        <div class="alert-banner mt-3" *ngIf="line.statut === 'ARRETEE'">
+           <i class="ph ph-warning"></i>
+           <div class="alert-content">
+             <strong>Arret Critique depuis {{ line.dernierArret | date:'shortTime' }}</strong>
+             <span>Cause: {{ line.causeArret }}</span>
+           </div>
+        </div>
+      </div>
+
+      <!-- Card Footer -->
+      <div class="card-footer">
+        <div class="operator-info">
+          <div class="avatar bg-blue-glow text-blue fw-bold">{{ line.responsable ? line.responsable.substring(0,2).toUpperCase() : 'U' }}</div>
+          <div>
+            <p class="op-name">{{ line.responsable || 'Non assigné' }}</p>
+            <p class="op-shift"><i class="ph ph-clock"></i> {{ line.shiftActuel || 'Aucun shift' }}</p>
+          </div>
+        </div>
+        
+        <div class="card-footer-actions">
+           <button class="btn-outline btn-sm me-2" *ngIf="authService.hasRole('ADMIN', 'RESPONSABLE_PRODUCTION')" (click)="openStatusModal(line)">
+             <i class="ph ph-swap"></i> Status
+           </button>
+           <button class="btn-primary btn-sm" (click)="viewPostes(line)">
+             <i class="ph ph-eye"></i> Postes
+           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="empty-state glass-card" *ngIf="filtered.length === 0">
+    <div class="empty-icon-ring">
+      <i class="ph ph-factory text-blue"></i>
+    </div>
+    <h3>Aucune ligne de production trouvée</h3>
+    <p>Ajustez vos filtres ou ajoutez une nouvelle ligne.</p>
+  </div>
+</div>
+
+<!-- ==============================================
+     CREATE / EDIT MODAL
+=============================================== -->
+<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+  <div class="modal-content glass-modal bounce-in" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <i class="ph ph-factory modal-title-icon text-blue"></i>
+        <h2>{{ isEditing ? 'Edit Line: ' + currentLine.nom : 'Add New Production Line' }}</h2>
+      </div>
+      <button class="close-btn" (click)="closeModal()"><i class="ph ph-x"></i></button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Code de ligne <span class="text-red">*</span></label>
+          <input type="text" [(ngModel)]="currentLine.code" class="custom-input" placeholder="e.g. LIG-001">
+        </div>
+        
+        <div class="form-group">
+          <label>Nom <span class="text-red">*</span></label>
+          <input type="text" [(ngModel)]="currentLine.nom" class="custom-input" placeholder="e.g. Ligne 1" disabled>
+        </div>
+
+        <div class="form-group full-width">
+          <label>Produit Assigné</label>
+          <select [(ngModel)]="currentLine.produitId" class="custom-select">
+            <option [ngValue]="null">--- Aucun Produit ---</option>
+            <option *ngFor="let p of products" [value]="p.id">{{ p.name }} ({{ p.reference }})</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Responsable</label>
+          <input type="text" [(ngModel)]="currentLine.responsable" class="custom-input" placeholder="Nom du responsable">
+        </div>
+
+        <div class="form-group">
+          <label>Shift Actuel</label>
+          <input type="text" [(ngModel)]="currentLine.shiftActuel" class="custom-input" placeholder="e.g. Morning (06:00 - 14:00)">
+        </div>
+
+        <div class="form-group">
+          <label>Cadence Objectif (U/h)</label>
+          <input type="number" [(ngModel)]="currentLine.cadenceObjectif" class="custom-input">
+        </div>
+
+        <!-- Only allow status edit here if creating new (otherwise use status modal) -->
+         <div class="form-group" *ngIf="!isEditing">
+          <label>Statut Initial</label>
+          <select [(ngModel)]="currentLine.statut" class="custom-select">
+            <option value="EN_PRODUCTION">En Production</option>
+            <option value="ARRETEE">Arrêtée</option>
+            <option value="CHANGEMENT_SERIE">Changement Série</option>
+          </select>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="modal-footer flex-between">
+      <div></div>
+      <div class="ms-auto flex gap-2">
+        <button class="btn-cancel" (click)="closeModal()">Cancel</button>
+        <button class="btn-primary" (click)="saveLine()">
+          <i class="ph ph-floppy-disk"></i> Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==============================================
+     STATUS CHANGE MODAL
+=============================================== -->
+<div class="modal-overlay" *ngIf="showStatusModal" (click)="closeStatusModal()">
+  <div class="modal-content glass-modal bounce-in" style="max-width: 450px;" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <i class="ph ph-swap modal-title-icon text-orange"></i>
+        <h2>Changement de Statut</h2>
+      </div>
+      <button class="close-btn" (click)="closeStatusModal()"><i class="ph ph-x"></i></button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Nouveau Statut</label>
+        <select [(ngModel)]="statusUpdateData.statut" class="custom-select">
+          <option value="EN_PRODUCTION">En Production</option>
+          <option value="ARRETEE">Arrêtée (Créer Alerte)</option>
+          <option value="CHANGEMENT_SERIE">Changement Série</option>
+        </select>
+      </div>
+
+      <div class="form-group" *ngIf="statusUpdateData.statut === 'ARRETEE'">
+        <label>Cause de l'arrêt <span class="text-red">*</span></label>
+        <textarea [(ngModel)]="statusUpdateData.cause" class="custom-input" rows="3" placeholder="Ex: Manque composant, Panne machine..."></textarea>
+      </div>
+      
+      <div class="alert-box info-box mt-3" *ngIf="statusUpdateData.statut === 'ARRETEE'">
+         <i class="ph ph-info"></i>
+         <p>Ceci déclenchera une alerte de type Downtime Event et mettra les KPIs à zero.</p>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="closeStatusModal()">Cancel</button>
+      <button class="btn-primary" [ngClass]="{'bg-red-gradient': statusUpdateData.statut === 'ARRETEE'}" (click)="updateStatus()">
+        <i class="ph ph-check"></i> Confirmer
+      </button>
+    </div>
+  </div>
+</div>

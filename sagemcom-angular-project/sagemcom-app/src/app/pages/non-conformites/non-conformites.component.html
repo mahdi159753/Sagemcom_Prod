@@ -1,0 +1,239 @@
+<div class="nc-page">
+
+  <!-- ── HEADER ── -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Non-Conformites</h1>
+      <p class="page-sub">Suivi et gestion des non-conformites qualite</p>
+    </div>
+    <button class="btn btn-primary" (click)="showModal=true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Declarer NC
+    </button>
+  </div>
+
+  <!-- ── STATS CARDS ── -->
+  <div class="grid grid-4 mb-5">
+    <div class="card stat-card">
+      <div class="stat-label">Ouvertes</div>
+      <div class="stat-val" style="color:#DC3545">{{ stats.ouvertes }}</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-label">En Traitement</div>
+      <div class="stat-val" style="color:#FFC107">{{ stats.enTraitement }}</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-label">Cloturees</div>
+      <div class="stat-val" style="color:#28A745">{{ stats.cloturees }}</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-label">Critiques</div>
+      <div class="stat-val" style="color:#DC3545">{{ stats.critiques }}</div>
+    </div>
+  </div>
+
+  <!-- ── FILTERS ── -->
+  <div class="card filter-card mb-5">
+    <div class="filter-inner">
+      <select [(ngModel)]="ligneFilter" (ngModelChange)="applyFilter()">
+        <option value="all">Toutes les lignes</option>
+        <option value="Ligne 1">Ligne 1</option>
+        <option value="Ligne 2">Ligne 2</option>
+        <option value="Ligne 3">Ligne 3</option>
+        <option value="Ligne 4">Ligne 4</option>
+      </select>
+
+      <select [(ngModel)]="graviteFilter" (ngModelChange)="applyFilter()">
+        <option value="all">Toutes gravites</option>
+        <option value="Critique">Critique</option>
+        <option value="Majeur">Majeur</option>
+        <option value="Mineur">Mineur</option>
+      </select>
+
+      <select [(ngModel)]="statutFilter" (ngModelChange)="applyFilter()">
+        <option value="all">Tous les statuts</option>
+        <option value="Ouverte">Ouverte</option>
+        <option value="En Traitement">En Traitement</option>
+        <option value="Cloturee">Cloturee</option>
+      </select>
+
+      <span class="ml-auto text-muted" style="font-size:13px">
+        {{ filtered.length }} non-conformite(s)
+      </span>
+    </div>
+  </div>
+
+  <!-- ── NC LIST ── -->
+  <div class="nc-list">
+    <div *ngFor="let nc of filtered"
+         class="nc-card card"
+         [style.border-left-color]="getSeverityColor(nc.gravite)">
+      <div class="nc-body">
+
+        <!-- LEFT: Icon + content -->
+        <div class="nc-icon-wrap" [style.background]="getSeverityColor(nc.gravite) + '20'">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+               [attr.stroke]="getSeverityColor(nc.gravite)" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+
+        <div class="nc-content">
+          <div class="nc-title-row">
+            <h3 class="nc-ref">{{ nc.reference }}</h3>
+            <span class="text-muted" style="font-size:12px">
+              {{ nc.ligne }} • {{ nc.poste }} • {{ nc.produit }}
+            </span>
+            <span class="badge severity-badge"
+                  [style.background]="getSeverityColor(nc.gravite)">
+              {{ nc.gravite }}
+            </span>
+            <span class="badge" [ngClass]="getStatutClass(nc.statut)">
+              {{ nc.statut }}
+            </span>
+          </div>
+
+          <p class="nc-desc">{{ nc.description }}</p>
+
+          <div class="nc-meta">
+            <div class="meta-item">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <span>{{ nc.dateDetection }}</span>
+            </div>
+            <div class="meta-item">
+              <span>Operateur : {{ nc.operateur }}</span>
+            </div>
+          </div>
+
+          <!-- Action corrective box -->
+          <div *ngIf="nc.actionCorrective" class="action-corrective-box">
+            <div class="ac-label">Action Corrective</div>
+            <p class="ac-text">{{ nc.actionCorrective }}</p>
+          </div>
+        </div>
+
+        <!-- RIGHT: Buttons -->
+        <div class="nc-actions">
+          <button class="btn btn-outline btn-sm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            Voir Details
+          </button>
+          <button *ngIf="nc.statut !== 'Cloturee'"
+                  class="btn btn-success btn-sm"
+                  (click)="cloturer(nc)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            Cloturer
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <div *ngIf="filtered.length === 0" class="empty-state">
+      <p>Aucune non-conformite trouvee.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL — Declarer NC
+══════════════════════════════════════ -->
+<div class="modal-overlay" *ngIf="showModal" (click)="showModal=false">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+
+    <div class="modal-header">
+      <h2 class="modal-title">Declarer une Non-Conformite</h2>
+      <button class="close-btn" (click)="showModal=false">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Ligne</label>
+          <select [(ngModel)]="newNC.ligne">
+            <option value="">Selectionner...</option>
+            <option value="Ligne 1">Ligne 1</option>
+            <option value="Ligne 2">Ligne 2</option>
+            <option value="Ligne 3">Ligne 3</option>
+            <option value="Ligne 4">Ligne 4</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Poste</label>
+          <select [(ngModel)]="newNC.poste">
+            <option value="">Selectionner...</option>
+            <option value="P001-ASM">P001-ASM</option>
+            <option value="P002-TST">P002-TST</option>
+            <option value="P003-QC">P003-QC</option>
+            <option value="P004-EMB">P004-EMB</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Produit</label>
+        <input type="text" [(ngModel)]="newNC.produit" placeholder="Ex: Gateway X300-FR"/>
+      </div>
+
+      <div class="form-group">
+        <label>Type NC</label>
+        <select [(ngModel)]="newNC.typeNC">
+          <option value="">Selectionner...</option>
+          <option value="assemblage">Defaut Assemblage</option>
+          <option value="test">Echec Test</option>
+          <option value="cosmetique">Defaut Cosmetique</option>
+          <option value="etiquetage">Erreur Etiquetage</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Description</label>
+        <textarea [(ngModel)]="newNC.description"
+                  placeholder="Decrire la non-conformite en detail..."
+                  rows="4"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Gravite</label>
+        <select [(ngModel)]="newNC.gravite">
+          <option value="">Selectionner...</option>
+          <option value="Critique">Critique</option>
+          <option value="Majeur">Majeur</option>
+          <option value="Mineur">Mineur</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Photos (optionnel)</label>
+        <input type="file" multiple accept="image/*"/>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="showModal=false">Annuler</button>
+      <button class="btn btn-primary" (click)="submitNC()">Soumettre</button>
+    </div>
+
+  </div>
+</div>

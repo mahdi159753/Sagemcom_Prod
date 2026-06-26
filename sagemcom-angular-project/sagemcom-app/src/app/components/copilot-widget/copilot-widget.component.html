@@ -1,0 +1,66 @@
+<div class="copilot-container" [class.open]="isOpen">
+  <!-- Launcher Button -->
+  <button class="copilot-launcher" (click)="toggleWidget()">
+    <i class="ph text-2xl" [class.ph-robot]="!isOpen" [class.ph-x]="isOpen"></i>
+  </button>
+
+  <!-- Chat Window -->
+  <div class="copilot-window glassmorphism" *ngIf="isOpen">
+    <!-- Header -->
+    <div class="copilot-header">
+      <div class="header-info">
+        <div class="ai-avatar">
+          <i class="ph ph-sparkle"></i>
+        </div>
+        <div>
+          <h3>Copilot IA</h3>
+          <span class="status">Sagemcom Assistant</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages Area -->
+    <div class="copilot-body" #scrollMe>
+      <div class="message-row" *ngFor="let msg of messages" [class.user-row]="msg.sender === 'user'">
+        
+        <!-- AI Avatar next to AI messages -->
+        <div class="msg-avatar ai-avatar-small" *ngIf="msg.sender === 'ai'">
+          <i class="ph ph-robot"></i>
+        </div>
+
+        <div class="message-bubble" [class.user-bubble]="msg.sender === 'user'" [class.ai-bubble]="msg.sender === 'ai'">
+          <!-- Render HTML if parsed from Markdown, else plain text -->
+          <div *ngIf="msg.isHtml" [innerHTML]="msg.content" class="markdown-content"></div>
+          <div *ngIf="!msg.isHtml">{{ msg.content }}</div>
+        </div>
+
+      </div>
+
+      <!-- Loading Indicator -->
+      <div class="message-row" *ngIf="isLoading">
+        <div class="msg-avatar ai-avatar-small">
+          <i class="ph ph-robot"></i>
+        </div>
+        <div class="message-bubble ai-bubble typing-indicator">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="copilot-footer">
+      <div class="input-wrapper">
+        <input 
+          type="text" 
+          placeholder="Demandez-moi d'analyser le TRG..." 
+          [(ngModel)]="messageText" 
+          (keyup.enter)="sendMessage()" 
+          [disabled]="isLoading"
+        >
+        <button class="send-btn" (click)="sendMessage()" [disabled]="!messageText.trim() || isLoading">
+          <i class="ph ph-paper-plane-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

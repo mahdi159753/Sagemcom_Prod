@@ -1,0 +1,90 @@
+<div class="chat-widget-container" [class.open]="isOpen" *ngIf="!isChatRoute">
+  
+  <button class="chat-launcher" (click)="toggleWidget()">
+    <i class="ph text-xl" [class.ph-chat-circle-dots]="!isOpen" [class.ph-x]="isOpen"></i>
+  </button>
+
+  <!-- Widget Window -->
+  <div class="chat-window glass-modal" *ngIf="isOpen">
+    
+    <!-- Contacts List View -->
+    <ng-container *ngIf="!isChatting">
+      <div class="window-header">
+        <h3>Messages</h3>
+        <button class="btn-icon" (click)="openFullChat()" title="Open full page">
+          <i class="ph ph-arrows-out-simple"></i>
+        </button>
+      </div>
+      
+      <div class="contacts-body">
+        <div class="contact-item" *ngFor="let contact of contacts" (click)="openChat(contact)">
+          <div class="avatar">
+            {{ contact.firstname.charAt(0) }}{{ contact.lastname.charAt(0) }}
+            <span class="status-dot" [class.online]="isOnline(contact.lastActive)"></span>
+          </div>
+          <div class="contact-info">
+            <h4>{{ contact.firstname }} {{ contact.lastname }}</h4>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- Active Chat View -->
+    <ng-container *ngIf="isChatting && activeContact">
+      <div class="window-header">
+        <button class="btn-icon" (click)="backToList()">
+          <i class="ph ph-caret-left"></i>
+        </button>
+        <div class="active-user-info">
+          <h4>{{ activeContact.firstname }} {{ activeContact.lastname }}</h4>
+          <span class="status-text" [class.text-green]="isOnline(activeContact.lastActive)">
+            {{ isOnline(activeContact.lastActive) ? 'Online' : 'Offline' }}
+          </span>
+        </div>
+        <button class="btn-icon" (click)="openFullChat()" title="Open full page">
+          <i class="ph ph-arrows-out-simple"></i>
+        </button>
+      </div>
+
+      <div class="messages-body" #scrollMe>
+        <div class="message-wrapper" *ngFor="let msg of messages" 
+             [class.sent]="msg.senderId === currentUserId" 
+             [class.received]="msg.senderId !== currentUserId">
+          <div class="message-bubble" [class.has-attachment]="msg.attachmentUrl">
+            <div class="attachment-preview" *ngIf="msg.attachmentUrl">
+              <img *ngIf="isImage(msg.attachmentUrl)" [src]="msg.attachmentUrl" alt="Attachment" class="chat-image">
+              <a *ngIf="!isImage(msg.attachmentUrl)" [href]="msg.attachmentUrl" target="_blank" class="chat-file-link">
+                <i class="ph ph-file"></i> View
+              </a>
+            </div>
+            <span *ngIf="msg.content">{{ msg.content }}</span>
+          </div>
+        </div>
+        
+        <div class="empty-chat" *ngIf="messages.length === 0">
+          <p>No messages yet.</p>
+        </div>
+      </div>
+
+      <div class="attachment-bar" *ngIf="selectedFile">
+        <div class="file-chip">
+          <i class="ph ph-paperclip"></i> {{ selectedFile.name }}
+          <button class="btn-remove" (click)="removeAttachment()"><i class="ph ph-x"></i></button>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <input type="file" #fileInput (change)="onFileSelected($event)" style="display: none;">
+        <button class="btn-attach" (click)="fileInput.click()">
+          <i class="ph ph-paperclip"></i>
+        </button>
+        <input type="text" placeholder="Type a message..." [(ngModel)]="messageText" (keyup.enter)="sendMessage()" [disabled]="isUploading">
+        <button class="btn-send" (click)="sendMessage()" [disabled]="(!messageText.trim() && !selectedFile) || isUploading">
+          <i class="ph ph-spinner ph-spin" *ngIf="isUploading"></i>
+          <i class="ph ph-paper-plane-right" *ngIf="!isUploading"></i>
+        </button>
+      </div>
+    </ng-container>
+
+  </div>
+</div>

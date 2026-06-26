@@ -1,0 +1,151 @@
+<!-- src/app/components/layout/layout.component.html -->
+<div class="app-layout">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar glass-sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon-container">
+        <i class="ph ph-hexagon-fill logo-icon text-blue"></i>
+      </div>
+      <div class="logo-text">
+        <span class="brand-name">SAGEMCOM</span>
+        <span class="brand-sub">Production Pro</span>
+      </div>
+    </div>
+
+    <!-- Role badge in sidebar -->
+    <div class="sidebar-profile">
+      <div class="role-badge badge-glow" [ngClass]="roleBadgeColor">
+        <i class="ph ph-shield-check"></i>
+        {{ roleLabel }}
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main Menu</div>
+      <!-- navItems is already filtered by role in the TS -->
+      <a *ngFor="let item of navItems"
+         [routerLink]="item.path"
+         routerLinkActive="active"
+         class="nav-item">
+        <i class="ph text-lg" [ngClass]="item.icon"></i>
+        <span>{{ item.label }}</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <button class="nav-item">
+        <i class="ph ph-lifebuoy text-lg"></i>
+        <span>Help & Support</span>
+      </button>
+      <button class="nav-item text-red logout-btn" (click)="logout()">
+        <i class="ph ph-sign-out text-lg"></i>
+        <span>Sign Out</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── MAIN AREA ── -->
+  <div class="main-area">
+
+    <!-- TOPBAR -->
+    <header class="topbar glass-topbar">
+      
+      <div class="topbar-left">
+        <div class="greeting-box">
+          <h2 class="greeting-text">{{ greeting }}, <span class="fw-bold gradient-text">{{ authService.getFirstname() || 'User' }}</span> <span class="wave">👋</span></h2>
+          <p class="date-text"><i class="ph ph-calendar-blank"></i> {{ currentDate }} &bull; {{ currentTime }}</p>
+        </div>
+      </div>
+
+      <div class="topbar-mid">
+        <div class="global-search glass-input">
+          <i class="ph ph-magnifying-glass search-icon"></i>
+          <input type="text" placeholder="Search across production...">
+          <div class="search-shortcut">Ctrl K</div>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        
+        <button class="icon-btn modern-hover" title="Settings">
+          <i class="ph ph-gear-six text-lg"></i>
+        </button>
+
+        <div style="position: relative;">
+          <button class="icon-btn modern-hover notification-btn" title="Notifications" (click)="toggleNotifDropdown($event)">
+            <i class="ph ph-bell text-lg"></i>
+            <span class="notif-ping" *ngIf="unreadCount > 0"></span>
+            <span class="notif-badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+          </button>
+
+          <div class="notification-dropdown glass-card shadow-lg" *ngIf="showNotifDropdown" (click)="$event.stopPropagation()">
+            <div class="notif-header">
+              <h4 style="margin:0;font-size:14px;font-weight:600;">Notifications</h4>
+              <button style="border:none;background:transparent;cursor:pointer;" class="text-blue text-sm font-medium hover:underline" (click)="markAllAsRead($event)" *ngIf="unreadCount > 0">Mark all read</button>
+            </div>
+            <div class="notif-body">
+              <div class="empty-notifs text-muted text-sm text-center py-4" *ngIf="notifications.length === 0">
+                You're all caught up!
+              </div>
+              <div class="notif-item" *ngFor="let n of notifications">
+                <div class="notif-icon-circle flex-shrink-0" [ngClass]="n.type === 'NC' ? 'bg-orange-alpha' : 'bg-red-alpha'">
+                  <i style="font-size:18px;" class="ph ph-warning-circle" [ngClass]="n.type === 'NC' ? 'text-orange' : 'text-red'"></i>
+                </div>
+                <div class="notif-content flex-grow">
+                  <p style="margin:0;font-size:12px;line-height:1.4;color:#1e293b;font-weight:500;">{{ n.message }}</p>
+                  <span style="font-size:10px;color:#94a3b8;font-weight:500;">{{ formatTimeAgo(n.createdAt) }}</span>
+                </div>
+                <button class="notif-read-btn flex-shrink-0" title="Mark as read" (click)="markAsRead(n.id, $event)">
+                  <i class="ph ph-check-circle"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- ── Dynamic user chip ── -->
+        <div class="user-profile-chip">
+          <div class="avatar-container">
+            <div class="avatar">{{ userInitials }}</div>
+            <div class="status-indicator"></div>
+          </div>
+          <div class="user-info">
+            <span class="user-name">{{ username }}</span>
+            <span class="user-role">{{ roleLabel }}</span>
+          </div>
+          <i class="ph ph-caret-down text-muted" style="font-size: 12px; margin-left: 4px;"></i>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- PAGE CONTENT -->
+    <main class="page-content bg-mesh">
+      <div class="content-wrapper">
+        <router-outlet></router-outlet>
+      </div>
+    </main>
+  </div>
+
+  <!-- TOAST NOTIFICATIONS -->
+  <div class="toast-container">
+    <div class="modern-toast glass-card slide-in-bottom" *ngFor="let toast of activeToasts">
+      <div class="toast-icon-side flex-shrink-0" [ngClass]="toast.type === 'NC' ? 'bg-orange-alpha text-orange' : 'bg-red-alpha text-red'">
+        <i style="font-size:24px;" class="ph ph-bell-ringing"></i>
+      </div>
+      <div class="toast-content-side">
+        <h6 style="margin:0;font-size:14px;font-weight:700;">{{ toast.type === 'NC' ? 'Non-Conformity Alert' : 'Downtime Alert' }}</h6>
+        <p style="margin:2px 0 0;font-size:12px;color:#475569;">{{ toast.message }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT WIDGET -->
+  <app-chat-widget></app-chat-widget>
+  
+  <!-- COPILOT WIDGET -->
+  <app-copilot-widget></app-copilot-widget>
+</div>

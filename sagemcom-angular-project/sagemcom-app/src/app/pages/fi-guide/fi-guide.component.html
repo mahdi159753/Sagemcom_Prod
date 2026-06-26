@@ -1,0 +1,583 @@
+<div class="page-container">
+
+  <!-- PAGE HEADER -->
+  <div class="header-section">
+    <div class="header-text-container">
+      <h1 class="page-title">FI-Guide – Contrôle Qualité Guidé</h1>
+      <p class="page-subtitle">Numérisez vos Fiches d'Instruction, guidez vos opérateurs et générez des rapports de traçabilité en temps réel.</p>
+    </div>
+  </div>
+
+  <!-- NAVIGATION TABS -->
+  <div class="tabs-navigation floating-pill-tabs">
+    <button class="tab-btn" [class.active]="activeTab === 'operator'" (click)="setTab('operator')">
+      <i class="ph ph-list-checks"></i> Contrôle Opérateur
+    </button>
+    <button *ngIf="canManage()" class="tab-btn" [class.active]="activeTab === 'manager'" (click)="setTab('manager')">
+      <i class="ph ph-upload-simple"></i> Gestion des Fiches (.xlsx)
+    </button>
+    <button *ngIf="canViewReports()" class="tab-btn" [class.active]="activeTab === 'reports'" (click)="setTab('reports')">
+      <i class="ph ph-file-text"></i> Rapports de Traçabilité
+    </button>
+  </div>
+
+  <!-- TAB 1: OPERATOR CHECKLIST WIZARD -->
+  <div *ngIf="activeTab === 'operator'">
+    
+    <!-- 1. Selection Screen (No active session) -->
+    <div *ngIf="!activeSession" class="selection-screen fade-in">
+      <div class="filters-bar glass-card mb-6">
+        <div class="search-box">
+          <i class="ph ph-magnifying-glass search-icon"></i>
+          <input type="text" [(ngModel)]="searchProductQuery" (ngModelChange)="applyProductFilter()" class="search-input" placeholder="Rechercher un produit ou une référence...">
+        </div>
+        <button class="btn btn-outline" (click)="loadProduits()">
+          <i class="ph ph-arrows-clockwise"></i> Rafraîchir
+        </button>
+      </div>
+
+      <div class="loading-state glass-card py-6" *ngIf="loadingProducts">
+        <div class="spinner"></div>
+        <p class="mt-4 text-muted">Chargement du catalogue produit et des fiches d'instruction...</p>
+      </div>
+
+      <div class="products-grid" *ngIf="!loadingProducts && filteredProduits.length > 0">
+        <div class="product-card glass-card hover-lift" *ngFor="let p of filteredProduits">
+          <div class="card-header">
+            <span class="badge" [ngClass]="p.status === 'active' ? 'badge-green' : p.status === 'development' ? 'badge-blue' : 'badge-gray'">
+              {{ p.status | uppercase }}
+            </span>
+            <span class="version-tag" *ngIf="hasActiveFi(p.id)">
+              <i class="ph ph-git-branch"></i> {{ getFiVersion(p.id) }}
+            </span>
+          </div>
+
+          <div class="card-body">
+            <h3 class="product-name">{{ p.name }}</h3>
+            <p class="product-ref"><i class="ph ph-hash"></i> {{ p.reference }}</p>
+            <p class="product-cat"><i class="ph ph-tag"></i> {{ p.category }}</p>
+
+            <div class="fi-info-box mt-4 bg-light-alpha">
+              <div *ngIf="hasActiveFi(p.id)" class="fi-active-state">
+                <i class="ph ph-check text-success text-xl"></i>
+                <div>
+                  <p class="fi-lbl">Fiche d'instruction validée</p>
+                  <p class="fi-sub">{{ getFiStepsCount(p.id) }} opérations de contrôle configurées</p>
+                </div>
+              </div>
+              <div *ngIf="!hasActiveFi(p.id)" class="fi-empty-state">
+                <i class="ph ph-x text-danger text-xl"></i>
+                <div>
+                  <p class="fi-lbl">Aucune instruction (.xlsx)</p>
+                  <p class="fi-sub text-danger">Upload nécessaire avant contrôle</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <button class="btn btn-primary btn-full btn-glow" [disabled]="!hasActiveFi(p.id)" (click)="startSession(p)">
+              <i class="ph ph-play-circle"></i> Lancer le Contrôle
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state glass-card" *ngIf="!loadingProducts && filteredProduits.length === 0">
+        <div class="empty-icon-ring">
+          <i class="ph ph-tray text-gray"></i>
+        </div>
+        <h3>Aucun produit trouvé</h3>
+        <p>Ajustez vos filtres ou contactez votre responsable qualité.</p>
+      </div>
+    </div>
+
+    <!-- 2. Quality Control Active Wizard Screen -->
+    <div *ngIf="activeSession && currentStep" class="wizard-screen fade-in">
+      
+      <!-- Wizard Progress Header -->
+      <div class="wizard-header glass-card mb-4">
+        <div class="wizard-meta">
+          <div>
+            <span class="active-badge"><i class="ph ph-shield-check"></i> Session de Contrôle Qualité Active</span>
+            <h2 class="wizard-product-title">{{ activeSession.produit?.name }} ({{ activeSession.produit?.reference }})</h2>
+          </div>
+          <div class="text-right">
+            <span class="version-label"><i class="ph ph-file-text"></i> FI Version: {{ activeSession.fiDocument?.version }}</span>
+            <p class="operator-label"><i class="ph ph-user"></i> Opérateur : {{ authService.getFirstname() }} {{ authService.getLastname() }}</p>
+          </div>
+        </div>
+
+        <div class="progress-container mt-4">
+          <div class="progress-meta text-sm text-muted">
+            <span>Opération {{ currentStepIndex + 1 }} sur {{ activeSteps.length }}</span>
+            <span>Progression : {{ progressPercentage }}%</span>
+          </div>
+          <div class="progress-bar mt-2">
+            <div class="progress-fill bg-primary-glow" [style.width.%]="progressPercentage"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- IMAGES (MOVED TO TOP FOR FULL WIDTH) -->
+      <div class="step-image-container-top mb-4" *ngIf="currentStep.imageUrls">
+        <div class="glass-card p-2" style="background: #fff;">
+          <img *ngFor="let url of getImageArray(currentStep.imageUrls)" 
+               [src]="'http://localhost:8081' + url" 
+               (click)="openLightbox('http://localhost:8081' + url)"
+               class="step-image rounded-lg shadow-sm w-full object-contain transition-all hover:opacity-90" 
+               style="width: 100%; cursor: zoom-in; border: 1px solid #e2e8f0;" 
+               alt="Image d'instruction">
+        </div>
+      </div>
+
+      <!-- Step Details Card -->
+      <div class="grid grid-32">
+        
+        <!-- Left Side: Operation checklist and instruction -->
+        <div class="instruction-details glass-card">
+          <div class="card-header border-b pb-3">
+            <h3 class="step-title text-primary text-xl fw-bold">{{ currentStep.operation }}</h3>
+            <div class="text-sm text-muted mt-1" *ngIf="currentStep.stepNumber && !currentStep.operation.includes(currentStep.stepNumber)">
+              Réf / Étape : {{ currentStep.stepNumber }}
+            </div>
+          </div>
+
+          <div class="card-body pt-4">
+            
+            <!-- WARNING BOX (IF PRESENT) -->
+            <div class="warning-alert-card bg-red-alpha mb-4" *ngIf="currentStep.warningText">
+              <div class="warning-header flex-center gap-2">
+                <i class="ph ph-warning-octagon text-danger text-lg"></i>
+                <h4 class="text-danger fw-semibold">ATTENTION / REMARQUE DE SÉCURITÉ</h4>
+              </div>
+              <p class="warning-content text-danger mt-2 font-mono">{{ currentStep.warningText }}</p>
+            </div>
+
+            <!-- IMAGES REMOVED FROM HERE, MOVED TO TOP -->
+
+            <!-- CRITERIA LIST -->
+            <div class="criteria-section" *ngIf="criteriaLines && criteriaLines.length > 0">
+              <h4 class="criteria-header mb-3"><i class="ph ph-list-bullets"></i> Critères de conformité à valider :</h4>
+              <ul class="criteria-list">
+                <li class="criteria-item" *ngFor="let criterion of criteriaLines">
+                  <i class="ph ph-check-circle text-muted"></i>
+                  <span>{{ criterion }}</span>
+                </li>
+              </ul>
+            </div>
+            
+            <!-- No criteria message -->
+            <div class="text-muted text-sm fst-italic" *ngIf="!criteriaLines || criteriaLines.length === 0">
+              <i class="ph ph-info"></i> Aucune instruction détaillée pour cette étape. Suivez le mode opératoire standard.
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Operator verification action panel -->
+        <div class="action-panel glass-card">
+          <div class="card-header border-b">
+            <h3 class="card-title">Décision Qualité</h3>
+          </div>
+
+          <div class="card-body">
+            <div class="decision-buttons">
+              <button class="decision-btn conforme" [class.selected]="stepValidationStatus === 'CONFORME'" (click)="selectConforme()">
+                <i class="ph ph-thumbs-up text-xl"></i>
+                <span>CONFORME</span>
+              </button>
+              <button class="decision-btn non-conforme" [class.selected]="stepValidationStatus === 'NON_CONFORME'" (click)="selectNonConforme()">
+                <i class="ph ph-thumbs-down text-xl"></i>
+                <span>NON-CONFORME</span>
+              </button>
+            </div>
+
+            <!-- COMMENT ZONE (Mandatory on NON-CONFORME) -->
+            <div class="comment-section mt-4" *ngIf="stepValidationStatus">
+              <label class="comment-label mb-2 block">
+                Commentaire de contrôle
+                <span class="text-danger" *ngIf="stepValidationStatus === 'NON_CONFORME'">* (Obligatoire)</span>
+                <span class="text-muted" *ngIf="stepValidationStatus === 'CONFORME'"> (Optionnel)</span>
+              </label>
+              <textarea [(ngModel)]="stepValidationComment" class="custom-textarea w-full" rows="3" placeholder="Saisir des remarques de contrôle..."></textarea>
+            </div>
+
+            <div class="validation-error-alert text-danger text-sm mt-3" *ngIf="validationError">
+              <i class="ph ph-warning"></i> {{ validationError }}
+            </div>
+
+            <div class="panel-actions mt-6 flex gap-3">
+              <button class="btn btn-outline" (click)="cancelSession()">
+                <i class="ph ph-stop"></i> Abandonner
+              </button>
+              <button class="btn btn-primary ml-auto" [disabled]="submittingStep" (click)="validateStep()">
+                <span *ngIf="!submittingStep">
+                  {{ currentStepIndex === activeSteps.length - 1 ? 'Clôturer la Session' : 'Valider & Suivant' }}
+                  <i class="ph ph-arrow-right"></i>
+                </span>
+                <span *ngIf="submittingStep" class="flex-center gap-2">
+                  <div class="spinner btn-spinner"></div> Validation...
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TAB 2: MANAGER EXCEL UPLOADS -->
+  <div *ngIf="activeTab === 'manager' && canManage()" class="fade-in">
+    <div class="filters-bar glass-card mb-6">
+      <div class="search-box">
+        <i class="ph ph-magnifying-glass search-icon"></i>
+        <input type="text" [(ngModel)]="searchProductQuery" (ngModelChange)="applyProductFilter()" class="search-input" placeholder="Rechercher un produit ou une référence...">
+      </div>
+    </div>
+
+    <!-- Catalogue List for uploads -->
+    <div class="table-container glass-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Code Produit / Réf</th>
+            <th>Fiche Active</th>
+            <th>Dernière Version</th>
+            <th>Dernière Importation</th>
+            <th class="text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of filteredProduits">
+            <td>
+              <div class="fw-semibold">{{ p.name }}</div>
+              <div class="text-xs text-muted">{{ p.reference }}</div>
+            </td>
+            <td>
+              <span class="badge" [ngClass]="hasActiveFi(p.id) ? 'badge-green' : 'badge-red'">
+                {{ hasActiveFi(p.id) ? 'Validé (Actif)' : 'Pas de Fiche' }}
+              </span>
+            </td>
+            <td>
+              <div class="font-mono text-sm fw-semibold" *ngIf="hasActiveFi(p.id)">{{ getFiVersion(p.id) }}</div>
+              <div class="text-xs text-muted" *ngIf="!hasActiveFi(p.id)">N/A</div>
+            </td>
+            <td>
+              <div class="text-sm" *ngIf="hasActiveFi(p.id)">
+                {{ activeFiCache[p.id!].document?.uploadedAt | date:'dd/MM/yyyy HH:mm' }}
+              </div>
+              <div class="text-xs text-muted" *ngIf="hasActiveFi(p.id)">
+                par : {{ activeFiCache[p.id!].document?.uploadedBy?.firstname || activeFiCache[p.id!].document?.uploadedBy?.prenom }} {{ activeFiCache[p.id!].document?.uploadedBy?.lastname || activeFiCache[p.id!].document?.uploadedBy?.nom }}
+              </div>
+              <div class="text-xs text-muted" *ngIf="!hasActiveFi(p.id)">-</div>
+            </td>
+            <td class="text-right flex gap-2 justify-end">
+              <button class="btn btn-primary btn-sm btn-glow" (click)="openUploadModal(p)">
+                <i class="ph ph-upload"></i> Importer FI (.xlsx)
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- EXCEL UPLOAD MODAL -->
+    <div class="modal-overlay" *ngIf="selectedUploadProduct" (click)="closeUploadModal()">
+      <div class="modal-content glass-modal bounce-in" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <i class="ph ph-file-xls text-green text-xl"></i>
+            <h2>Importer une Fiche d'Instruction</h2>
+          </div>
+          <button class="close-btn" (click)="closeUploadModal()"><i class="ph ph-x"></i></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="upload-product-meta bg-light-alpha mb-4">
+            <p class="text-sm font-semibold">Produit ciblé : <span class="text-primary">{{ selectedUploadProduct.name }} ({{ selectedUploadProduct.reference }})</span></p>
+          </div>
+
+          <div class="form-group mb-4">
+            <label class="block mb-2 text-sm fw-medium">Indice / Version de la Fiche d'Instruction *</label>
+            <input type="text" [(ngModel)]="uploadVersion" class="custom-input w-full" placeholder="e.g. Indice D">
+            <span class="text-xs text-muted">Exemples de format de version : "Indice A", "Rev 2", "Indice D_20240223"</span>
+          </div>
+
+          <!-- DROP ZONE -->
+          <div class="upload-zone" [class.has-file]="selectedFileName">
+            <div class="file-drop-area modern-drop-area">
+              <input type="file" #excelInput class="file-input" (change)="onFileSelected($event)" accept=".xlsx">
+              <div class="drop-msg" *ngIf="!selectedFileName" (click)="excelInput.click()">
+                <i class="ph ph-upload-simple text-green"></i>
+                <p><strong>Cliquez pour parcourir</strong> ou glissez-déposez le fichier Excel</p>
+                <span class="file-hint">Format accepté : Excel (.xlsx) uniquement</span>
+              </div>
+              <div class="drop-msg file-selected" *ngIf="selectedFileName" (click)="excelInput.click()">
+                <div class="file-preview-icon">
+                  <i class="ph ph-file-xls text-green"></i>
+                </div>
+                <div class="file-preview-details">
+                  <p class="file-name">{{ selectedFileName }}</p>
+                  <span class="change-text"><i class="ph ph-arrows-clockwise"></i> Cliquez pour changer de fichier</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="validation-error-alert text-danger text-sm mt-3" *ngIf="uploadError">
+            <i class="ph ph-warning"></i> {{ uploadError }}
+          </div>
+
+          <div class="validation-success-alert text-success text-sm mt-3" *ngIf="uploadSuccess">
+            <i class="ph ph-check-circle"></i> {{ uploadSuccess }}
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class=" btn btn-cancel" (click)="closeUploadModal()">Annuler</button>
+          <button class="btn btn-primary" [disabled]="submittingUpload" (click)="uploadFiche()">
+            <span *ngIf="!submittingUpload">
+              <i class="ph ph-floppy-disk"></i> Enregistrer 
+            </span>
+            <span *ngIf="submittingUpload" class="flex-center gap-2">
+              <div class="spinner btn-spinner"></div> Traitement ...
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIGHTBOX ZOOM MODAL -->
+    <div class="modal-overlay" *ngIf="showLightbox" (click)="closeLightbox()" style="z-index: 9999; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; right: 0; bottom: 0;">
+      <div class="lightbox-content" (click)="$event.stopPropagation()" style="position: relative; max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <button class="close-btn" (click)="closeLightbox()" style="position: absolute; top: -45px; right: 0; background: none; border: none; color: white; font-size: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+          <i class="ph ph-x"></i>
+        </button>
+        <img [src]="lightboxImageUrl" style="max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.6);" />
+        <div style="color: white; margin-top: 15px; font-size: 14px; text-align: center; background: rgba(0,0,0,0.6); padding: 8px 18px; border-radius: 20px;">
+          <i class="ph ph-info mr-1"></i> Feuille d'instruction complète (cliquez à l'extérieur pour fermer)
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: TRACEABILITY REPORTS -->
+  <div *ngIf="activeTab === 'reports' && canViewReports()" class="fade-in">
+    <div class="filters-bar glass-card mb-6">
+      <div class="search-box">
+        <i class="ph ph-magnifying-glass search-icon"></i>
+        <input type="text" [(ngModel)]="searchHistoryQuery" (ngModelChange)="applyHistoryFilter()" class="search-input" placeholder="Filtrer par produit, opérateur, statut...">
+      </div>
+      <button class="btn btn-outline" (click)="loadHistory()">
+        <i class="ph ph-arrows-clockwise"></i> Actualiser
+      </button>
+    </div>
+
+    <div class="loading-state glass-card py-6" *ngIf="loadingHistory">
+      <div class="spinner"></div>
+      <p class="mt-4 text-muted">Chargement de l'historique des sessions de contrôle...</p>
+    </div>
+
+    <!-- History Table -->
+    <div class="table-container glass-card" *ngIf="!loadingHistory">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID Session</th>
+            <th>Produit / Réf</th>
+            <th>Opérateur (Préparateur)</th>
+            <th>Version FI</th>
+            <th>Date / Durée</th>
+            <th>Statut Final</th>
+            <th class="text-right">Rapport</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of filteredHistory">
+            <td>
+              <span class="font-mono fw-bold">#{{ s.id }}</span>
+            </td>
+            <td>
+              <div class="fw-semibold">{{ s.produit?.name }}</div>
+              <div class="text-xs text-muted">{{ s.produit?.reference }}</div>
+            </td>
+            <td>
+              <div class="fw-medium">{{ s.operator?.firstname }} {{ s.operator?.lastname }}</div>
+              <div class="text-xs text-muted">Matricule : {{ s.operator?.matricule || 'N/A' }}</div>
+            </td>
+            <td>
+              <span class="badge badge-gray font-mono">{{ s.fiDocument?.version }}</span>
+            </td>
+            <td>
+              <div class="text-sm">{{ s.startedAt | date:'dd/MM/yyyy HH:mm' }}</div>
+              <div class="text-xs text-muted" *ngIf="s.completedAt">
+                Fin : {{ s.completedAt | date:'HH:mm:ss' }}
+              </div>
+            </td>
+            <td>
+              <span class="badge" [ngClass]="s.status === 'COMPLETED' ? 'badge-green' : s.status === 'FAILED' ? 'badge-red' : 'badge-yellow'">
+                <i class="ph" [ngClass]="s.status === 'COMPLETED' ? 'ph-check-circle' : s.status === 'FAILED' ? 'ph-x-circle' : 'ph-clock'"></i>
+                {{ s.status === 'COMPLETED' ? 'CONFORME' : s.status === 'FAILED' ? 'NON-CONFORME' : 'EN COURS' }}
+              </span>
+            </td>
+            <td class="text-right">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" (click)="viewReport(s.id!)">
+                  <i class="ph ph-eye"></i> Afficher
+                </button>
+                <button class="btn btn-outline btn-sm text-danger" *ngIf="canManage()" (click)="deleteSession(s.id!)" title="Supprimer le rapport">
+                  <i class="ph ph-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="filteredHistory.length === 0">
+            <td colspan="7" class="text-center py-6 text-muted">Aucune session trouvée.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- DETAILED SESSION REPORT MODAL -->
+    <div class="modal-overlay report-detail-overlay" *ngIf="showReportModal" (click)="closeReportModal()">
+      <div class="modal-content report-detail-content glass-modal zoom-in" (click)="$event.stopPropagation()">
+        
+        <div class="modal-header print-hide">
+          <div class="modal-title-group">
+            <i class="ph ph-file-text text-primary text-xl"></i>
+            <h2>Rapport de Contrôle Qualité Guidé</h2>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-outline btn-sm" (click)="printReport()"><i class="ph ph-printer"></i> Imprimer</button>
+            <button class="close-btn" (click)="closeReportModal()"><i class="ph ph-x"></i></button>
+          </div>
+        </div>
+
+        <div class="modal-body print-area">
+          <div class="loading-state py-6" *ngIf="loadingReportDetails">
+            <div class="spinner"></div>
+            <p class="mt-4 text-muted">Chargement du rapport de traçabilité...</p>
+          </div>
+
+          <div *ngIf="!loadingReportDetails && selectedReport" class="report-document">
+            
+            <!-- Sagemcom Document Header -->
+            <div class="report-header">
+              <div class="logo-zone">
+                <span class="brand-name font-mono fw-bold">SAGEMCOM</span>
+                <p class="text-xs text-muted">Système de Traçabilité Industrielle</p>
+              </div>
+              <div class="report-title-zone">
+                <h1 class="text-xl">RAPPORT D'INSPECTION QUALITÉ</h1>
+                <p class="report-id-text">Réf Session : #CS-{{ selectedReport.sessionId }}</p>
+              </div>
+            </div>
+
+            <!-- Metadata Grid -->
+            <div class="report-metadata-grid mt-4">
+              <div class="meta-col">
+                <p class="meta-label">Produit & Réf :</p>
+                <p class="meta-val fw-semibold">{{ selectedReport.produitName }}</p>
+                <p class="meta-val font-mono text-sm">{{ selectedReport.produitRef }}</p>
+              </div>
+              <div class="meta-col">
+                <p class="meta-label">Fiche d'Instruction :</p>
+                <p class="meta-val">{{ selectedReport.fiFileName }}</p>
+                <p class="meta-val font-mono text-xs text-muted">Version: {{ selectedReport.fiVersion }}</p>
+              </div>
+              <div class="meta-col">
+                <p class="meta-label">Inspecteur (Opérateur) :</p>
+                <p class="meta-val fw-semibold">{{ selectedReport.operatorName }}</p>
+                <p class="meta-val text-xs text-muted">Matricule: {{ selectedReport.operatorMatricule || 'N/A' }}</p>
+              </div>
+              <div class="meta-col">
+                <p class="meta-label">Période du Contrôle :</p>
+                <p class="meta-val text-sm">Début: {{ selectedReport.startedAt | date:'dd/MM/yyyy HH:mm:ss' }}</p>
+                <p class="meta-val text-sm" *ngIf="selectedReport.completedAt">Fin: {{ selectedReport.completedAt | date:'dd/MM/yyyy HH:mm:ss' }}</p>
+              </div>
+            </div>
+
+            <!-- RESULT BANNER -->
+            <div class="result-banner mt-4" [ngClass]="selectedReport.conforme ? 'banner-green' : 'banner-red'">
+              <div class="banner-icon">
+                <i class="ph" [ngClass]="selectedReport.conforme ? 'ph-check-circle' : 'ph-warning-octagon'"></i>
+              </div>
+              <div class="banner-text">
+                <h2 class="outcome-title">VERDICT GLOBAL : {{ selectedReport.conforme ? 'CONFORME' : 'NON-CONFORME' }}</h2>
+                <p class="outcome-sub">Toutes les opérations de contrôle ont été validées sous la signature numérique de l'opérateur.</p>
+              </div>
+            </div>
+
+            <!-- STEPS DETAILS TABLE -->
+            <div class="steps-details-section mt-6">
+              <h3 class="section-title mb-3">Détail des Opérations de Contrôle</h3>
+              <table class="report-table">
+                <thead>
+                  <tr>
+                    <th style="width: 80px;">Étape</th>
+                    <th style="width: 250px;">Opération / Description</th>
+                    <th>Résultat</th>
+                    <th>Date validation</th>
+                    <th>Commentaires & Écarts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let s of selectedReport.steps">
+                    <td class="font-mono fw-semibold text-center">Op {{ s.stepNumber }}</td>
+                    <td>
+                      <div class="fw-semibold text-primary">{{ s.operation }}</div>
+                      <div class="text-xs text-muted mt-1 font-mono whitespace-pre-line">{{ s.description }}</div>
+                      
+                      <!-- Warnings list (if present in report) -->
+                      <div class="report-warning text-xs text-danger mt-1 bg-red-alpha py-1 px-2 border-r-4 border-danger" *ngIf="s.warningText">
+                        <strong>Alerte Sécurité: </strong>{{ s.warningText }}
+                      </div>
+
+                      <!-- Image Thumbnails -->
+                      <div class="mt-2 flex flex-wrap gap-2" *ngIf="s.imageUrls">
+                        <img *ngFor="let url of getImageArray(s.imageUrls)" [src]="'http://localhost:8081' + url" class="rounded border" style="max-height: 120px;" alt="Image d'instruction">
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge" [ngClass]="s.status === 'CONFORME' ? 'badge-green' : s.status === 'NON_CONFORME' ? 'badge-red' : 'badge-yellow'">
+                        {{ s.status }}
+                      </span>
+                    </td>
+                    <td class="text-xs text-muted">
+                      {{ s.validatedAt | date:'dd/MM/yyyy HH:mm:ss' }}
+                    </td>
+                    <td>
+                      <div class="comment-text" [class.text-danger]="s.status === 'NON_CONFORME'">
+                        {{ s.comment || '-' }}
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Signatures zone -->
+            <div class="signature-section mt-6 pt-6 border-t">
+              <div class="sig-box">
+                <p class="sig-title">Signature Numérique de l'Opérateur</p>
+                <p class="sig-name">{{ selectedReport.operatorName }}</p>
+                <p class="sig-email text-xs text-muted">{{ selectedReport.operatorEmail }}</p>
+                <div class="sig-hash font-mono text-xs mt-3">Hash SHA256: {{ selectedReport.startedAt | date:'yyyyMMddHHmmss' }}_{{ selectedReport.sessionId }}_QC_SIGNED</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="modal-footer print-hide">
+          <button class="btn btn-outline" (click)="closeReportModal()">Fermer</button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+</div>

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: predictive-agent-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: predictive-agent
+  template:
+    metadata:
+      labels:
+        app: predictive-agent
+    spec:
+      containers:
+        - name: predictive-agent
+          image: predictive-agent:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            # El GROQ_API_KEY mte3na - nhotiha directement houni (kima e-bqiya)
+            - name: GROQ_API_KEY
+              value: "YOUR_GROQ_API_KEY_HERE"
+            - name: GROQ_MODEL
+              value: "llama-3.3-70b-versatile"
+          ports:
+            - containerPort: 8000
+          # Health check bch Kubernetes yaaref elli el agent yekhdem mrigel
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: predictive-agent-service
+spec:
+  # ClusterIP: juste el Backend ynajem ykallmou, l'utilisateur mta3na ma yosoloch direct
+  type: ClusterIP
+  selector:
+    app: predictive-agent
+  ports:
+    - port: 8000
+      targetPort: 8000

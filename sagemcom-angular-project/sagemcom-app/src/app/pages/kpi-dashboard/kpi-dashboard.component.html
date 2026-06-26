@@ -1,0 +1,195 @@
+<div class="page-container">
+  <div class="header-section">
+    <div class="header-text-container">
+      <h1 class="page-title">Executive KPI Dashboard</h1>
+      <p class="page-subtitle">Key Performance Indicators, Yield, and Global Equipment Effectiveness</p>
+    </div>
+    <div class="header-actions">
+      <select [(ngModel)]="chantier" (ngModelChange)="onFilterChange()" class="custom-select">
+        <option *ngFor="let c of chantiers" [value]="c">{{ c }}</option>
+      </select>
+      <select [(ngModel)]="period" (ngModelChange)="onFilterChange()" class="custom-select">
+        <option value="month">This Month</option>
+        <option value="quarter">Last 3 Months</option>
+        <option value="half">Last 6 Months</option>
+        <option value="year">This Year</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- METRIC CARDS -->
+  <div class="metrics-grid">
+    <div *ngFor="let m of metrics" class="metric-card" (click)="openMetricDetails(m)" style="cursor: pointer;">
+      <div class="metric-card-header">
+        <span class="metric-title">{{ m.title }}</span>
+        <div class="metric-icon-wrap">
+          <i class="ph ph-chart-bar metric-icon"></i>
+        </div>
+      </div>
+      
+      <div class="metric-main">
+        <span class="metric-num">{{ m.value | number:'1.0-1' }}</span>
+        <span class="metric-unit">{{ m.unit }}</span>
+      </div>
+      
+      <div class="metric-footer">
+        <div class="trend-badge" [ngClass]="{'positive': m.trend > 0, 'negative': m.trend < 0, 'neutral': m.trend === 0}">
+          <i class="ph" [ngClass]="{'ph-trend-up': m.trend > 0, 'ph-trend-down': m.trend < 0, 'ph-minus': m.trend === 0}"></i>
+          {{ getTrendSign(m.trend) }}{{ m.trend }}{{ m.unit === 'units' ? '' : '%' }}
+        </div>
+        <div class="metric-target">Target: {{ m.target | number:'1.0-0' }} {{ m.unit }}</div>
+      </div>
+
+      <div class="progress-bar">
+        <div class="progress-fill" [style.width.%]="getProgress(m)" [style.background]="getProgressFill(m.status)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS & SUMMARY -->
+  <div class="main-grid">
+    <div class="charts-column">
+      <div class="glass-card">
+        <div class="card-header"><h3 class="card-title">Production Volume – {{ chantier }}</h3></div>
+        <div class="card-body"><canvas #prodCanvas></canvas></div>
+      </div>
+      <div class="glass-card">
+        <div class="card-header"><h3 class="card-title">Quality Rate Trend – {{ chantier }}</h3></div>
+        <div class="card-body"><canvas #qualityCanvas></canvas></div>
+      </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="glass-card">
+      <div class="card-header"><h3 class="card-title">Performance Summary</h3></div>
+      <div class="card-body">
+        <div class="summary-stack">
+          <div class="summary-box">
+            <div class="summary-icon-wrap">
+              <i class="ph ph-check-circle" style="color:#10B981"></i>
+            </div>
+            <div class="summary-content">
+              <div class="summary-label">Above Target</div>
+              <div class="summary-val text-green" style="color:#10B981">{{ aboveTarget }} KPIs</div>
+              <p class="summary-detail">{{ aboveNames }}</p>
+            </div>
+          </div>
+          
+          <div class="summary-box">
+            <div class="summary-icon-wrap">
+              <i class="ph ph-warning" style="color:#F59E0B"></i>
+            </div>
+            <div class="summary-content">
+              <div class="summary-label">Below Target</div>
+              <div class="summary-val text-yellow" style="color:#F59E0B">{{ belowTarget }} KPIs</div>
+              <p class="summary-detail">{{ belowNames }}</p>
+            </div>
+          </div>
+          
+          <div class="summary-box">
+            <div class="summary-icon-wrap">
+              <i class="ph ph-warning-octagon" style="color:#EF4444"></i>
+            </div>
+            <div class="summary-content">
+              <div class="summary-label">Critical</div>
+              <div class="summary-val text-red" style="color:#EF4444">{{ critical }} KPIs</div>
+              <p class="summary-detail">{{ criticalNames }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI PREDICTIVE SECTION -->
+  <div class="ai-section mt-4" *ngIf="oeePredictions && oeePredictions.length > 0">
+    <div class="glass-card ai-glow-card">
+      <div class="card-header ai-header-bg">
+        <h3 class="card-title ai-title">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+          AI Copilot: Predicted OEE (TRG) & Root Cause Analysis
+        </h3>
+      </div>
+      <div class="card-body">
+        <div class="ai-pred-grid">
+          <div class="ai-pred-card" *ngFor="let pred of oeePredictions" [ngClass]="{'pred-danger': pred.predictedTrg < 85, 'pred-success': pred.predictedTrg >= 85}">
+            <div class="pred-ligne">Ligne {{ pred.ligne }}</div>
+            <div class="pred-value">{{ pred.predictedTrg }}%</div>
+            <div class="pred-status">Predicted Tomorrow</div>
+            
+            <div class="pred-details" *ngIf="pred.predictedTrg < 85">
+              <div class="pred-cause"><strong>Cause:</strong> {{ pred.rootCauseIndicator }}</div>
+              <div class="pred-action"><strong>Action:</strong> {{ pred.recommendation }}</div>
+            </div>
+            <div class="pred-details" *ngIf="pred.predictedTrg >= 85">
+              <div class="pred-cause text-green">Performance OK</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI Details Modal -->
+  <div class="modal-overlay" *ngIf="selectedMetric" (click)="closeMetricDetails()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ selectedMetric.title }} Details</h2>
+        <button class="close-btn" (click)="closeMetricDetails()">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-metric-hero">
+          <div class="hero-val" [style.color]="getStatusColor(selectedMetric.status)">
+            {{ selectedMetric.value | number:'1.0-1' }} <span class="hero-unit">{{ selectedMetric.unit }}</span>
+          </div>
+          <div class="hero-target">Target: {{ selectedMetric.target | number:'1.0-1' }} {{ selectedMetric.unit }}</div>
+        </div>
+        
+        <div class="modal-details-grid">
+          <div class="detail-box">
+            <span class="detail-label">Current Status</span>
+            <span class="detail-val" [style.color]="getStatusColor(selectedMetric.status)">
+              {{ selectedMetric.status | uppercase }}
+            </span>
+          </div>
+          <div class="detail-box">
+            <span class="detail-label">Period Trend</span>
+            <span class="detail-val" [style.color]="getTrendColor(selectedMetric.trend)">
+              {{ getTrendSign(selectedMetric.trend) }}{{ selectedMetric.trend }}{{ selectedMetric.unit === 'units' ? '' : '%' }}
+            </span>
+          </div>
+        </div>
+        
+        <div class="modal-info">
+          <h4>About this Metric</h4>
+          <p *ngIf="selectedMetric.title.includes('OEE') || selectedMetric.title.includes('TRG')">
+            Overall Equipment Effectiveness (OEE/TRG) evaluates how effectively a manufacturing operation is utilized. It is calculated as Availability × Performance × Quality.
+          </p>
+          <p *ngIf="selectedMetric.title.includes('FIRST PASS YIELD') || selectedMetric.title.includes('FPY')">
+            First Pass Yield (FPY) measures the percentage of products manufactured correctly the first time without any rework or scrap. It is a strict indicator of process quality.
+          </p>
+          <p *ngIf="selectedMetric.title.includes('AVAILABILITY') || selectedMetric.title.includes('DISPONIBILITÉ')">
+            Availability measures the percentage of planned production time that the equipment is actually operating and producing parts, taking into account machine downtime and setups.
+          </p>
+          <p *ngIf="selectedMetric.title.includes('PERFORMANCE')">
+            Performance Rate measures how close the equipment is running to its theoretical maximum speed while it is operating, highlighting micro-stops or slow cycles.
+          </p>
+          <p *ngIf="selectedMetric.title.includes('VOLUME')">
+            Production Volume indicates the total number of physical units produced across the selected timeframe and production lines.
+          </p>
+          <p *ngIf="!selectedMetric.title.includes('VOLUME') && !selectedMetric.title.includes('PERFORMANCE') && !selectedMetric.title.includes('AVAILABILITY') && !selectedMetric.title.includes('FIRST PASS YIELD') && !selectedMetric.title.includes('OEE') && !selectedMetric.title.includes('TRG') && !selectedMetric.title.includes('DISPONIBILITÉ') && !selectedMetric.title.includes('FPY')">
+            This metric tracks performance against predefined target thresholds to ensure operational excellence.
+          </p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" (click)="closeMetricDetails()">Acknowledge</button>
+      </div>
+    </div>
+  </div>
+
+</div>

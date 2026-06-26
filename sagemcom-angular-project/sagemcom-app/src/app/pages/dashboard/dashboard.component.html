@@ -1,0 +1,219 @@
+<div class="page-container">
+
+  <!-- PAGE HEADER -->
+  <div class="header-section">
+    <div class="header-text-container">
+      <h1 class="page-title">Production Overview</h1>
+      <p class="page-subtitle">Real-time global production health and line statuses</p>
+      <div class="breadcrumb">
+        <span>Home</span><span class="sep">›</span><span>Dashboard</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <select [(ngModel)]="chantier" (ngModelChange)="onChantierChange()" class="custom-select">
+        <option *ngFor="let c of chantiers" [value]="c">{{ c }}</option>
+      </select>
+      <div class="date-info">
+        <div class="fw-semibold">{{ currentDate }}</div>
+        <div class="text-muted">{{ currentTime }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="stats-grid">
+    <div class="stat-card glass-card">
+      <div class="stat-header">
+        <div class="stat-icon-wrapper bg-blue-glow"><i class="ph ph-package stat-icon text-blue"></i></div>
+        <div class="stat-info">
+          <h3 class="stat-value">{{ productionValue }}</h3>
+          <p class="stat-label">Total Production ({{ chantier }})</p>
+        </div>
+      </div>
+      <div class="stat-footer">
+        <div class="kpi-trend" [ngClass]="productionTrendClass">{{ productionTrend || 'No previous data' }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card glass-card">
+      <div class="stat-header">
+        <div class="stat-icon-wrapper bg-yellow-glow"><i class="ph ph-trend-up stat-icon text-yellow"></i></div>
+        <div class="stat-info">
+          <h3 class="stat-value">{{ trgValue }}%</h3>
+          <p class="stat-label">Global TRG Efficiency</p>
+        </div>
+      </div>
+      <div class="stat-footer">
+        <div class="kpi-trend" [ngClass]="trgTrendClass">{{ trgTrend || 'No previous data' }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card glass-card">
+      <div class="stat-header">
+        <div class="stat-icon-wrapper bg-green-glow"><i class="ph ph-factory stat-icon text-green"></i></div>
+        <div class="stat-info">
+          <h3 class="stat-value">{{ lines.length > 0 ? lines.length : '—' }}</h3>
+          <p class="stat-label">Production Lines</p>
+        </div>
+      </div>
+      <div class="stat-footer">
+        <div class="line-dots">
+          <span *ngFor="let line of lines" class="line-dot" [style.color]="line.statut === 'EN_PRODUCTION' ? '#10b981' : (line.statut === 'ARRETEE' ? '#ef4444' : '#f59e0b')">•</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-card glass-card">
+      <div class="stat-header">
+        <div class="stat-icon-wrapper bg-red-glow"><i class="ph ph-warning-circle stat-icon text-red"></i></div>
+        <div class="stat-info">
+          <h3 class="stat-value text-red">{{ alerts.length }}</h3>
+          <p class="stat-label">Require attention</p>
+        </div>
+      </div>
+      <div class="stat-footer">
+        <a class="link-primary">View All <i class="ph ph-arrow-right"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- LINES TABLE + ALERTS -->
+  <div class="dashboard-grid-main">
+    <div class="glass-card">
+      <div class="card-header">
+        <h3 class="card-title">Production Lines Status</h3>
+      </div>
+      <div class="card-body" style="padding-top:8px">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Line</th>
+              <th>Current Product</th>
+              <th>Status</th>
+              <th>TRG</th>
+              <th>Performance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let line of lines">
+              <td><strong>{{ line.nom }}</strong></td>
+              <td class="text-muted">{{ line.produitNom || 'No Product' }}</td>
+              <td>
+                <span class="badge" [ngClass]="{'badge-green': line.statut==='EN_PRODUCTION', 'badge-red': line.statut==='ARRETEE', 'badge-yellow': line.statut==='CHANGEMENT_SERIE'}">
+                  <span class="dot" [style.background]="line.statut==='EN_PRODUCTION' ? '#10b981' : (line.statut==='ARRETEE' ? '#ef4444' : '#f59e0b')"></span>
+                  {{ line.statut === 'EN_PRODUCTION' ? 'Production' : (line.statut === 'ARRETEE' ? 'Arrêtée' : 'Changeover') }}
+                </span>
+              </td>
+              <td><strong>{{ line.trg | number:'1.0-0' }}%</strong></td>
+              <td>
+                <span [style.color]="getPerformanceColor(line.cadenceReelle >= line.cadenceObjectif ? 'good' : 'low')" style="font-size:13px; font-weight:600">
+                  {{ line.cadenceReelle }} / {{line.cadenceObjectif}}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <div class="glass-card">
+        <div class="card-header">
+          <h3 class="card-title">Recent Alerts</h3>
+        </div>
+        <div class="card-body">
+          <div *ngFor="let alert of alerts" class="alert-card" [ngClass]="alert.severity === 'critical' ? 'alert-red' : 'alert-yellow'">
+            <i class="ph ph-warning-octagon alert-icon" [style.color]="alert.severity === 'critical' ? '#ef4444' : '#f59e0b'"></i>
+            <div style="flex:1">
+              <div class="alert-title">{{ alert.title }}</div>
+              <div class="alert-sub">{{ alert.description }}</div>
+              <div class="alert-time">{{ alert.time }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-card">
+        <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
+          <h3 class="card-title">AI Predictive Insights</h3>
+          <span class="badge" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.2);"><i class="ph ph-sparkle"></i> Agent Active</span>
+        </div>
+        <div class="card-body">
+          <div *ngIf="insights.length === 0" class="text-muted" style="font-size: 13px; padding: 10px;">
+            Gathering historical data to train the predictive model...
+          </div>
+          <div *ngFor="let insight of insights" class="alert-card" [ngClass]="insight.probability > 0.7 ? 'alert-red' : 'alert-yellow'" style="margin-bottom: 12px; border-left: 4px solid; border-color: #8b5cf6; background: linear-gradient(145deg, rgba(139,92,246,0.03) 0%, rgba(139,92,246,0) 100%);">
+            <i class="ph ph-robot alert-icon" style="color: #8b5cf6; background: rgba(139,92,246,0.1); padding: 8px; border-radius: 8px;"></i>
+            <div style="flex:1">
+              <div class="alert-title" style="color: #1e293b;">
+                ⚠️ {{(insight.probability * 100).toFixed(0)}}% probability of <span style="font-weight: 700;">{{insight.likely_type}}</span> failure on {{insight.ligne}}
+              </div>
+              <div class="alert-sub" style="margin-top: 4px; font-size: 12.5px; color: #64748b;">
+                Estimated time to failure: <strong>~{{insight.estimated_time_to_failure_hours}}h</strong> based on historical MTBF.
+              </div>
+              <div class="alert-sub" style="margin-top: 6px; padding: 6px 8px; background: rgba(255,255,255,0.6); border-radius: 6px; font-size: 12px; color: #475569; display: flex; gap: 6px;">
+                <i class="ph ph-info" style="color: #3b82f6; margin-top: 2px;"></i>
+                <span>{{insight.recommended_action}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="grid-2">
+    <div class="glass-card">
+      <div class="card-header"><h3 class="card-title">TRG Evolution – {{ chantier }} – Last 7 Days</h3></div>
+      <div class="card-body">
+        <canvas #trgCanvas></canvas>
+      </div>
+    </div>
+    <div class="glass-card">
+      <div class="card-header"><h3 class="card-title">Downtime Causes – This Week</h3></div>
+      <div class="card-body downtime-chart-body">
+        <div class="downtime-chart-inner">
+          <canvas #downtimeCanvas width="180" height="180"></canvas>
+        </div>
+        <div class="downtime-legend">
+          <div *ngFor="let item of downtimeLegend" class="legend-row">
+            <div class="legend-left">
+              <div class="legend-box" [style.background]="item.color"></div>
+              <span class="text-muted" style="font-size:13px">{{ item.label }}</span>
+            </div>
+            <span class="fw-semibold" style="font-size:13.5px; color:#1e293b">{{ item.value }}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div class="glass-card">
+    <div class="card-header"><h3 class="card-title">Today's Production Timeline</h3></div>
+    <div class="card-body">
+      <div class="timeline-axis">
+        <span *ngFor="let h of [8,9,10,11,12,13,14,15,16,17]">{{ h }}:00</span>
+      </div>
+      <div class="timeline-bar">
+        <div *ngFor="let block of timelineBlocks; let i = index"
+             class="tl-block"
+             [style.left.%]="block.left"
+             [style.width.%]="block.width"
+             [style.background]="block.color"
+             (mouseenter)="tooltipVisible[i]=true"
+             (mouseleave)="tooltipVisible[i]=false">
+          <div class="tl-tooltip" *ngIf="tooltipVisible[i]">{{ block.label }}</div>
+        </div>
+        <div class="tl-current" [style.left.%]="currentTimePos"></div>
+      </div>
+      <div class="timeline-legend">
+        <div class="legend-item"><div class="legend-box" style="background:#10b981"></div>Production</div>
+        <div class="legend-item"><div class="legend-box" style="background:#ef4444"></div>Downtime</div>
+        <div class="legend-item"><div class="legend-box" style="background:#f59e0b"></div>Changeover</div>
+      </div>
+    </div>
+  </div>
+
+</div>

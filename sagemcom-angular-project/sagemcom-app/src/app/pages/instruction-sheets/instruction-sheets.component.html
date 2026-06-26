@@ -1,0 +1,233 @@
+<div class="page-container">
+  
+  <div class="header-section">
+    <div class="header-text-container">
+      <h1 class="page-title">Products & Instructions Hub</h1>
+      <p class="page-subtitle">Manage your product catalog, metrics, and technical instructions in one premium space.</p>
+    </div>
+    <button *ngIf="canEdit()" class="btn-primary btn-glow modern-shadow" (click)="openAddModal()">
+      <i class="ph ph-plus-circle text-lg"></i> New Product
+    </button>
+  </div>
+
+  <!-- STATS HUB (Dynamic) - Glassmorphism Style -->
+  <div class="stats-grid">
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-blue-glow">
+        <i class="ph ph-package stat-icon text-blue"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Total Products</p>
+        <h3 class="stat-value counter">{{ totalProducts }}</h3>
+      </div>
+    </div>
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-green-glow">
+        <i class="ph ph-check-circle stat-icon text-green"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Active Productions</p>
+        <h3 class="stat-value counter">{{ activeProducts }}</h3>
+      </div>
+    </div>
+    <!-- Total Produced KPI Removed as requested -->
+    
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-orange-glow">
+        <i class="ph ph-clock stat-icon text-orange"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Avg Cycle Time</p>
+        <h3 class="stat-value counter">{{ avgCycleTime }}s</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filters-bar glass-card">
+    <div class="search-box">
+      <i class="ph ph-magnifying-glass search-icon"></i>
+      <input type="text" [(ngModel)]="search" (ngModelChange)="applyFilter()" class="search-input" placeholder="Search by name or reference...">
+    </div>
+    <div class="status-filter">
+      <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilter()" class="custom-select filter-select">
+        <option value="all">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="development">In Development</option>
+        <option value="archived">Archived</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- PRODUCTS GRID -->
+  <div class="products-grid">
+    <div class="product-card glass-card hover-lift" *ngFor="let p of filtered">
+      
+      <div class="card-header border-b">
+        <span class="badge badge-glow" [ngClass]="getStatusClass(p.status)">
+          <i class="ph" [ngClass]="{'ph-check-circle': p.status === 'active', 'ph-code': p.status === 'development', 'ph-archive': p.status === 'archived'}"></i>
+          {{ p.status | uppercase }}
+        </span>
+        <div class="actions" *ngIf="canEdit()">
+          <button class="action-btn edit" (click)="openEditModal(p)" title="Edit">
+            <i class="ph ph-pencil-simple"></i>
+          </button>
+          <button class="action-btn delete" (click)="deleteProduit(p.id)" title="Delete">
+            <i class="ph ph-trash"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="product-title-group">
+          <h3 class="product-name">{{ p.name }}</h3>
+        </div>
+        <div class="product-meta">
+          <p class="product-ref"><i class="ph ph-hash"></i> {{ p.reference }}</p>
+          <p class="product-cat"><i class="ph ph-tag"></i> {{ p.category }}</p>
+        </div>
+      </div>
+
+      <div class="card-footer">
+        <div class="metrics">
+          <div class="metric">
+            <span class="metric-val">{{ p.cycleTime }}s</span>
+            <span class="metric-lbl">Cycle</span>
+          </div>
+          <div class="metric">
+            <span class="metric-val">{{ p.targetRate }}</span>
+            <span class="metric-lbl">Target/h</span>
+          </div>
+          <div class="metric">
+            <span class="metric-val">{{ p.totalProduced | number }}</span>
+            <span class="metric-lbl">Produced</span>
+          </div>
+        </div>
+        <div class="file-actions">
+          <button class="btn-instruction" [disabled]="!p.instructionPdfPath" (click)="viewPdf(p)">
+            <i class="ph ph-file-text"></i>
+            {{ p.instructionPdfPath ? 'Document' : 'No File' }}
+          </button>
+          <button class="btn-download" *ngIf="p.instructionPdfPath" (click)="downloadPdf(p)" title="Download PDF">
+            <i class="ph ph-download-simple"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="empty-state glass-card" *ngIf="filtered.length === 0">
+    <div class="empty-icon-ring">
+      <i class="ph ph-tray text-gray"></i>
+    </div>
+    <h3>No products found</h3>
+    <p>Try adjusting your search filters or add a new product.</p>
+  </div>
+</div>
+
+<!-- CREATE/EDIT MODAL -->
+<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+  <div class="modal-content glass-modal bounce-in" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <i class="ph ph-cube modal-title-icon text-primary"></i>
+        <h2>{{ isEditing ? 'Edit Product Configuration' : 'New Product Configuration' }}</h2>
+      </div>
+      <button class="close-btn" (click)="closeModal()"><i class="ph ph-x"></i></button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Product Name</label>
+          <input type="text" [(ngModel)]="currentProduit.name" class="custom-input" placeholder="e.g. Gateway Pro">
+        </div>
+        <div class="form-group">
+          <label>Reference Code</label>
+          <input type="text" [(ngModel)]="currentProduit.reference" class="custom-input" placeholder="e.g. GW-PRO-01">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select [(ngModel)]="currentProduit.category" class="custom-select">
+            <option *ngFor="let cat of availableCategories" [value]="cat">{{ cat }}</option>
+            <option value="other">Autre...</option>
+          </select>
+        </div>
+        <div class="form-group" *ngIf="currentProduit.category === 'other'">
+          <label>New Custom Category</label>
+          <input type="text" [(ngModel)]="newCategoryInputValue" class="custom-input" placeholder="e.g. Fibre Hub">
+        </div>
+        <div class="form-group">
+          <label>Lifecycle Status</label>
+          <select [(ngModel)]="currentProduit.status" class="custom-select">
+            <option value="active">Active Production</option>
+            <option value="development">In Development</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Cycle Time (seconds)</label>
+          <input type="number" [(ngModel)]="currentProduit.cycleTime" class="custom-input">
+        </div>
+        <div class="form-group">
+          <label>Target Rate (units/hour)</label>
+          <input type="number" [(ngModel)]="currentProduit.targetRate" class="custom-input">
+        </div>
+        <!-- Initial Total Produced field removed -->
+      </div>
+
+      <!-- FILE UPLOAD ZONE -->
+      <div class="upload-zone" [class.has-file]="selectedFileName || isEditing">
+        <label>Technical Instruction (PDF, Word, Excel)</label>
+        <div class="file-drop-area modern-drop-area">
+          <input type="file" #fileInput class="file-input" (change)="onFileSelected($event)" accept=".pdf, .doc, .docx, .xls, .xlsx">
+          <div class="drop-msg" *ngIf="!selectedFileName && (!isEditing || !currentProduit.instructionPdfPath)"
+               (click)="fileInput.click()">
+            <i class="ph ph-upload-simple"></i>
+            <p><strong>Click to browse</strong> or drag a file here</p>
+            <span class="file-hint">Accepts PDF, Word, Excel. Max size: 10MB</span>
+          </div>
+          <div class="drop-msg file-selected" *ngIf="selectedFileName || (isEditing && currentProduit.instructionPdfPath)"
+               (click)="fileInput.click()" style="cursor: pointer;">
+            <div class="file-preview-icon">
+              <i class="ph ph-file-pdf text-red"></i>
+            </div>
+            <div class="file-preview-details">
+              <p class="file-name">{{ selectedFileName || currentProduit.instructionPdfPath }}</p>
+              <span class="change-text"><i class="ph ph-arrows-clockwise"></i> Click to replace file</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="closeModal()">Cancel</button>
+      <button class="btn-primary" (click)="saveProduit()">
+        <i class="ph ph-floppy-disk"></i> {{ isEditing ? 'Save Changes' : 'Create Product' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF VIEWER MODAL -->
+<div class="modal-overlay pdf-modal" *ngIf="showPdfModal" (click)="closePdfModal()">
+  <div class="modal-content pdf-content glass-modal zoom-in" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <i class="ph ph-file-pdf text-red text-xl"></i>
+        <h2>Instruction Document Viewer</h2>
+      </div>
+      <div class="header-actions">
+        <!-- Allows downloading directly from PDF Viewer too -->
+        <button class="btn-outline btn-sm download-header-btn" (click)="downloadPdf(currentProduit)">
+          <i class="ph ph-download-simple"></i> Download
+        </button>
+        <button class="close-btn" (click)="closePdfModal()"><i class="ph ph-x"></i></button>
+      </div>
+    </div>
+    <div class="modal-body pdf-body">
+      <iframe *ngIf="pdfUrlToView" [src]="pdfUrlToView" class="pdf-frame" frameborder="0"></iframe>
+    </div>
+  </div>
+</div>

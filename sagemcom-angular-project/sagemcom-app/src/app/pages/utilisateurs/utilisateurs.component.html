@@ -1,0 +1,270 @@
+<div class="page-container">
+
+  <!-- ── HEADER SECTION ─────────────────────────────────────── -->
+  <div class="header-section">
+    <div class="header-text-container">
+      <h1 class="page-title">User Management HUB</h1>
+      <p class="page-subtitle">Administration des comptes, rôles et accès de la plateforme Sagemcom.</p>
+    </div>
+    <button class="btn-primary btn-glow modern-shadow" (click)="openModal()">
+      <i class="ph ph-user-plus text-lg"></i> Ajouter Utilisateur
+    </button>
+  </div>
+
+  <!-- ── STATS HUB (KPI Cards) ─────────────────────────────── -->
+  <div class="stats-grid">
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-blue-glow">
+        <i class="ph ph-users stat-icon text-blue"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Total Users</p>
+        <h3 class="stat-value counter">{{ stats.total }}</h3>
+      </div>
+    </div>
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-green-glow">
+        <i class="ph ph-check-circle stat-icon text-green"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Actifs</p>
+        <h3 class="stat-value counter">{{ stats.actifs }}</h3>
+      </div>
+    </div>
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-red-glow">
+        <i class="ph ph-shield-star stat-icon text-red"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Admins</p>
+        <h3 class="stat-value counter">{{ stats.admins }}</h3>
+      </div>
+    </div>
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-purple-glow">
+        <i class="ph ph-factory stat-icon text-purple"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Responsables</p>
+        <h3 class="stat-value counter">{{ stats.responsables }}</h3>
+      </div>
+    </div>
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-orange-glow">
+        <i class="ph ph-flask stat-icon text-orange"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Ingénieurs</p>
+        <h3 class="stat-value counter">{{ stats.ingenieurs }}</h3>
+      </div>
+    </div>
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-teal-glow">
+        <i class="ph ph-wrench stat-icon text-teal"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Préparateurs</p>
+        <h3 class="stat-value counter">{{ stats.preparateurs }}</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FILTER BAR ────────────────────────────────────────── -->
+  <div class="filters-bar glass-card">
+    <div class="search-box">
+      <i class="ph ph-magnifying-glass search-icon"></i>
+      <input type="text" [(ngModel)]="searchTerm" class="search-input" placeholder="Rechercher par nom, prénom ou email...">
+    </div>
+    <div class="status-filter">
+      <select [(ngModel)]="roleFilter" class="custom-select filter-select">
+        <option value="all">Tous les rôles</option>
+        <option value="ADMIN">Administrateur</option>
+        <option value="RESPONSABLE_PRODUCTION">Responsable Production</option>
+        <option value="INGENIEUR_QUALITE">Ingénieur Qualité</option>
+        <option value="PREPARATEUR">Préparateur</option>
+      </select>
+    </div>
+    <div class="status-filter">
+      <select [(ngModel)]="statutFilter" class="custom-select filter-select">
+        <option value="all">Tous les statuts</option>
+        <option value="Actif">Actif</option>
+        <option value="Inactif">Inactif</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ── USERS TABLE ───────────────────────────────────────── -->
+  <div class="table-card glass-card">
+    <div class="table-header">
+      <h3 class="table-title"><i class="ph ph-list-dashes"></i> Liste des Utilisateurs</h3>
+      <span class="table-count">{{ filteredUsers.length }} utilisateur{{ filteredUsers.length > 1 ? 's' : '' }}</span>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty-state" *ngIf="filteredUsers.length === 0">
+      <div class="empty-icon-ring">
+        <i class="ph ph-user-circle-minus text-muted-icon"></i>
+      </div>
+      <h3>Aucun utilisateur trouvé</h3>
+      <p>Aucun compte ne correspond à vos critères de recherche.</p>
+    </div>
+
+    <div class="table-wrapper" *ngIf="filteredUsers.length > 0">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Utilisateur</th>
+            <th>Email</th>
+            <th>Rôle</th>
+            <th>Ligne / Poste</th>
+            <th>Statut</th>
+            <th>Dernier Accès</th>
+            <th class="th-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let user of filteredUsers" class="table-row-hover">
+            <td>
+              <div class="user-cell">
+                <div class="user-avatar" [ngClass]="getRoleClass(user.role)">
+                  {{ (user.prenom[0] || '') + (user.nom[0] || '') }}
+                </div>
+                <div class="user-name-group">
+                  <span class="user-fullname">{{ user.prenom }} {{ user.nom }}</span>
+                  <span class="user-id">ID: #{{ user.id }}</span>
+                </div>
+              </div>
+            </td>
+            <td class="text-muted-cell"><i class="ph ph-envelope-simple"></i> {{ user.email }}</td>
+            <td>
+              <span class="badge badge-glow" [ngClass]="getRoleClass(user.role)">
+                <i class="ph ph-shield-check"></i>
+                {{ getRoleLabel(user.role) }}
+              </span>
+            </td>
+            <td class="text-muted-cell">
+              <ng-container *ngIf="user.ligne; else noLigne">
+                <div><i class="ph ph-map-pin"></i> {{ user.ligne }}</div>
+                <div *ngIf="user.poste" class="text-mono"><i class="ph ph-desktop-tower"></i> {{ user.poste }}</div>
+              </ng-container>
+              <ng-template #noLigne><span class="text-no-data">—</span></ng-template>
+            </td>
+            <td>
+              <span class="status-pill" [ngClass]="user.statut === 'Actif' ? 'status-active' : 'status-inactive'">
+                <span class="status-dot"></span>
+                {{ user.statut }}
+              </span>
+            </td>
+            <td>
+              <span class="status-pill presence-pill" [ngClass]="isUserOnline(user.lastActive) ? 'presence-online' : 'presence-offline'">
+                <span class="status-dot" *ngIf="isUserOnline(user.lastActive)"></span>
+                <i class="ph ph-clock text-muted-icon" *ngIf="!isUserOnline(user.lastActive)" style="margin-right: 4px;"></i>
+                {{ isUserOnline(user.lastActive) ? 'En Ligne' : formatLastActive(user.lastActive) }}
+              </span>
+            </td>
+            <td>
+              <div class="action-btns">
+                <button class="action-btn edit" title="Éditer" (click)="openModal(user)">
+                  <i class="ph ph-pencil-simple"></i>
+                </button>
+                <button
+                  class="action-btn"
+                  [ngClass]="user.statut === 'Actif' ? 'warn' : 'success'"
+                  [title]="user.statut === 'Actif' ? 'Désactiver' : 'Activer'"
+                  (click)="toggleStatut(user)">
+                  <i class="ph" [ngClass]="user.statut === 'Actif' ? 'ph-user-minus' : 'ph-user-check'"></i>
+                </button>
+                <button class="action-btn delete" title="Supprimer" (click)="deleteUser(user.id)">
+                  <i class="ph ph-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── ADD / EDIT MODAL ─────────────────────────────────────── -->
+<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+  <div class="modal-content glass-modal bounce-in" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <i class="ph ph-user-gear modal-title-icon text-blue"></i>
+        <h2>{{ editingUser ? 'Modifier Utilisateur' : 'Nouvel Utilisateur' }}</h2>
+      </div>
+      <button class="close-btn" (click)="closeModal()"><i class="ph ph-x"></i></button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label><i class="ph ph-user"></i> Prénom</label>
+          <input type="text" class="custom-input" placeholder="Ex: Marie" [(ngModel)]="formData.prenom">
+        </div>
+        <div class="form-group">
+          <label><i class="ph ph-user"></i> Nom</label>
+          <input type="text" class="custom-input" placeholder="Ex: Dupont" [(ngModel)]="formData.nom">
+        </div>
+
+        <div class="form-group full-width">
+          <label><i class="ph ph-envelope-simple"></i> Email</label>
+          <input type="email" class="custom-input" placeholder="Ex: marie.dupont@sagemcom.com" [(ngModel)]="formData.email">
+        </div>
+
+        <!-- Password only for creation -->
+        <div class="form-group full-width" *ngIf="!editingUser">
+          <label>
+            <i class="ph ph-lock-key"></i> Mot de passe
+            <span class="form-hint">(vide = Temp&#64;1234)</span>
+          </label>
+          <input type="password" class="custom-input" placeholder="Mot de passe initial..." [(ngModel)]="formData.password">
+        </div>
+
+        <div class="form-group">
+          <label><i class="ph ph-shield-check"></i> Rôle</label>
+          <select class="custom-select" [(ngModel)]="formData.role">
+            <option value="ADMIN">Administrateur</option>
+            <option value="RESPONSABLE_PRODUCTION">Responsable Production</option>
+            <option value="INGENIEUR_QUALITE">Ingénieur Qualité</option>
+            <option value="PREPARATEUR">Préparateur</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label><i class="ph ph-power"></i> Statut</label>
+          <select class="custom-select" [(ngModel)]="formData.statut">
+            <option value="Actif">Actif</option>
+            <option value="Inactif">Inactif</option>
+          </select>
+        </div>
+
+        <ng-container *ngIf="showLignePoste">
+          <div class="form-group">
+            <label><i class="ph ph-map-pin-line"></i> Ligne (optionnel)</label>
+            <select class="custom-select" [(ngModel)]="formData.ligne">
+              <option value="">Aucune</option>
+              <option value="Ligne 1">Ligne 1</option>
+              <option value="Ligne 2">Ligne 2</option>
+              <option value="Ligne 3">Ligne 3</option>
+              <option value="Ligne 4">Ligne 4</option>
+            </select>
+          </div>
+          <div class="form-group" *ngIf="showPoste">
+            <label><i class="ph ph-desktop-tower"></i> Poste (optionnel)</label>
+            <input type="text" class="custom-input" placeholder="Ex: P001-ASM" [(ngModel)]="formData.poste">
+          </div>
+        </ng-container>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="closeModal()">Annuler</button>
+      <button class="btn-primary" (click)="saveUser()">
+        <i class="ph ph-floppy-disk"></i> {{ editingUser ? 'Mettre à jour' : 'Créer le compte' }}
+      </button>
+    </div>
+  </div>
+</div>

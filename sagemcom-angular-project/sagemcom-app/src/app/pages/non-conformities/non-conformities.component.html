@@ -1,0 +1,404 @@
+<div class="page-container">
+  
+  <div class="header-section">
+    <div class="header-text-container">
+      <h1 class="page-title">Non-Conformity Management HUB</h1>
+      <p class="page-subtitle">Centralized tracking of production defects and client claims with 8D & QRQC processes.</p>
+    </div>
+    <!-- Allow only Engineer or Admin to create NC, operators usually report it differently or this is backoffice -->
+    <button class="btn-primary btn-glow modern-shadow" (click)="openAddModal()">
+      <i class="ph ph-plus-circle text-lg"></i> Declare Non-Conformity
+    </button>
+  </div>
+
+  <!-- STATS HUB (Dynamic) - Glassmorphism Style -->
+  <div class="stats-grid">
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-blue-glow">
+        <i class="ph ph-warning stat-icon text-blue"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Total NCs</p>
+        <h3 class="stat-value counter">{{ totalNcs }}</h3>
+      </div>
+    </div>
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-orange-glow">
+        <i class="ph ph-activity stat-icon text-orange"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Open / Processing</p>
+        <h3 class="stat-value counter">{{ openNcs }}</h3>
+      </div>
+    </div>
+    
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-purple-glow">
+        <i class="ph ph-users stat-icon text-purple"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Client Claims</p>
+        <h3 class="stat-value counter">{{ clientNcs }}</h3>
+      </div>
+    </div>
+
+    <div class="stat-card glass-card">
+      <div class="stat-icon-wrapper bg-red-glow">
+        <i class="ph ph-siren stat-icon text-red"></i>
+      </div>
+      <div class="stat-info">
+        <p class="stat-label">Critical Alerts</p>
+        <h3 class="stat-value counter">{{ criticalNcs }}</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filters-bar glass-card">
+    <div class="search-box">
+      <i class="ph ph-magnifying-glass search-icon"></i>
+      <input type="text" [(ngModel)]="search" (ngModelChange)="applyFilter()" class="search-input" placeholder="Search reference or description...">
+    </div>
+    <div class="status-filter">
+      <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilter()" class="custom-select filter-select">
+        <option value="all">Any Status</option>
+        <option value="OUVERTE">Ouverte</option>
+        <option value="EN_TRAITEMENT">En Traitement</option>
+        <option value="CLOTUREE">Cloturée</option>
+      </select>
+    </div>
+    <div class="status-filter">
+      <select [(ngModel)]="origineFilter" (ngModelChange)="applyFilter()" class="custom-select filter-select">
+        <option value="all">Any Origin</option>
+        <option value="USINE">Usine (Production)</option>
+        <option value="CLIENT">Client (Claim)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- NCs GRID -->
+  <div class="products-grid">
+    <div class="product-card glass-card hover-lift" *ngFor="let nc of filtered">
+      
+      <div class="card-header border-b">
+        <div class="badge-group">
+          <span class="badge badge-glow" [ngClass]="getStatutClass(nc.statut)">
+            <i class="ph ph-circle-notch" *ngIf="nc.statut === 'OUVERTE'"></i>
+            <i class="ph ph-spinner-gap" *ngIf="nc.statut === 'EN_TRAITEMENT'"></i>
+            <i class="ph ph-check-circle" *ngIf="nc.statut === 'CLOTUREE'"></i>
+            {{ nc.statut | uppercase }}
+          </span>
+          <span class="badge badge-glow ms-2" [ngClass]="getOrigineClass(nc.origine)">
+            <i class="ph ph-factory" *ngIf="nc.origine === 'USINE'"></i>
+            <i class="ph ph-user" *ngIf="nc.origine === 'CLIENT'"></i>
+            {{ nc.origine }}
+          </span>
+        </div>
+        
+        <div class="actions">
+          <button *ngIf="nc.statut === 'OUVERTE'" class="action-btn" style="color: #3b82f6;" (click)="openAssignModal(nc)" title="Assigner">
+            <i class="ph ph-user-plus"></i>
+          </button>
+          <button *ngIf="nc.statut === 'EN_TRAITEMENT'" class="action-btn" style="color: #f97316;" (click)="openTreatModal(nc)" title="Traiter">
+            <i class="ph ph-wrench"></i>
+          </button>
+          <button *ngIf="nc.statut === 'A_VALIDER' && authService.hasRole('ADMIN', 'INGENIEUR_QUALITE')" class="action-btn" style="color: #10b981;" (click)="validateNc(nc)" title="Valider">
+            <i class="ph ph-check-square-offset"></i>
+          </button>
+          <button class="action-btn edit" (click)="openEditModal(nc)" title="Edit">
+            <i class="ph ph-pencil-simple"></i>
+          </button>
+          <button class="action-btn delete" (click)="deleteNc(nc.id)" title="Delete">
+            <i class="ph ph-trash"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="product-title-group">
+          <h3 class="product-name">{{ nc.reference || 'NC-Unassigned' }}</h3>
+        </div>
+        <div class="product-meta mt-1">
+          <p class="product-ref"><i class="ph ph-warning-circle" [ngClass]="getGraviteClass(nc.gravite)"></i> Gravité: <strong>{{ nc.gravite }}</strong></p>
+          <p class="product-cat" *ngIf="nc.origine === 'USINE'"><i class="ph ph-map-pin"></i> {{ nc.localisation || 'Ligne Inconnue' }}</p>
+          <p class="product-cat" *ngIf="nc.origine === 'CLIENT'"><i class="ph ph-package"></i> Lot: {{ nc.lotConcerne || 'Non assigné' }}</p>
+          <p class="product-cat" *ngIf="nc.origine === 'CLIENT'"><i class="ph ph-clipboard-text"></i> Procédure: {{ nc.procedureType || '8D' }}</p>
+        </div>
+        <div class="nc-description">
+           {{ (nc.description || '') | slice:0:80 }}{{ (nc.description || '').length > 80 ? '...' : '' }}
+        </div>
+      </div>
+
+      <div class="card-footer">
+        <div class="metrics">
+          <div class="metric">
+            <span class="metric-val text-sm">{{ nc.dateDeclaration | date:'shortDate' }}</span>
+            <span class="metric-lbl">Déclarée</span>
+          </div>
+          <div class="metric text-right" *ngIf="nc.dateCloture">
+            <span class="metric-val text-sm">{{ nc.dateCloture | date:'shortDate' }}</span>
+            <span class="metric-lbl">Clôturée</span>
+          </div>
+          <div class="metric text-right" *ngIf="nc.origine === 'CLIENT'">
+            <span class="metric-val text-sm">
+              <i class="ph ph-check-circle text-green" *ngIf="nc.valideeParClient"></i>
+              <i class="ph ph-clock text-orange" *ngIf="!nc.valideeParClient"></i>
+            </span>
+            <span class="metric-lbl">Client Accept</span>
+          </div>
+        </div>
+        <div class="file-actions">
+          <button class="btn-instruction" [disabled]="!nc.reportPdfPath" (click)="viewPdf(nc)" [ngClass]="{'btn-client': nc.origine === 'CLIENT'}">
+            <i class="ph ph-file-pdf"></i>
+            {{ nc.reportPdfPath ? 'Rapport 8D/NC' : 'Missing Report' }}
+          </button>
+          <button class="btn-download" *ngIf="nc.reportPdfPath" (click)="downloadPdf(nc)" title="Download Report">
+            <i class="ph ph-download-simple"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="empty-state glass-card" *ngIf="filtered.length === 0">
+    <div class="empty-icon-ring">
+      <i class="ph ph-shield-check text-green"></i>
+    </div>
+    <h3>Aucune Non-Conformité trouvée</h3>
+    <p>La production est stable, aucune non-conformité ne correspond à vos recherches.</p>
+  </div>
+</div>
+
+<!-- CREATE/EDIT MODAL -->
+<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+  <div class="modal-content glass-modal bounce-in" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <i class="ph ph-warning-octagon modal-title-icon text-red"></i>
+        <h2>{{ isEditing ? 'Edit Non-Conformity' : 'Declare Non-Conformity' }}</h2>
+      </div>
+      <button class="close-btn" (click)="closeModal()"><i class="ph ph-x"></i></button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="form-grid">
+         <div class="form-group full-width">
+          <label>Origine / Source</label>
+          <div class="origin-toggle">
+            <label class="radio-card" [class.selected]="currentNc.origine === 'USINE'">
+               <input type="radio" name="origine" value="USINE" [(ngModel)]="currentNc.origine" (ngModelChange)="onOrigineChange()">
+               <i class="ph ph-factory"></i>
+               <span>Côté Usine</span>
+            </label>
+            <label class="radio-card" [class.selected]="currentNc.origine === 'CLIENT'">
+               <input type="radio" name="origine" value="CLIENT" [(ngModel)]="currentNc.origine" (ngModelChange)="onOrigineChange()">
+               <i class="ph ph-user"></i>
+               <span>Côté Client (Reclamation)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Référence NC</label>
+          <input type="text" [(ngModel)]="currentNc.reference" class="custom-input" placeholder="e.g. NC-2026-001">
+        </div>
+
+        <div class="form-group">
+          <label>Statut</label>
+          <select [(ngModel)]="currentNc.statut" class="custom-select">
+            <option value="OUVERTE">Ouverte</option>
+            <option value="EN_TRAITEMENT">En Traitement</option>
+            <option value="CLOTUREE">Clôturée</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Gravité</label>
+          <select [(ngModel)]="currentNc.gravite" class="custom-select" [disabled]="currentNc.origine === 'CLIENT'">
+            <!-- Auto locked to CRITIQUE if CLIENT -->
+            <option value="MINEUR">Mineur</option>
+            <option value="MAJEUR">Majeur</option>
+            <option value="CRITIQUE">Critique</option>
+          </select>
+          <small class="text-orange" *ngIf="currentNc.origine === 'CLIENT'">Gravité forcée à Critique pour réclamation client.</small>
+        </div>
+
+        <!-- DEPENDENT FIELDS -->
+        <ng-container *ngIf="currentNc.origine === 'USINE'">
+            <div class="form-group">
+              <label>Localisation (Ligne / Poste)</label>
+              <input type="text" [(ngModel)]="currentNc.localisation" class="custom-input" placeholder="e.g. Ligne 1 - Poste 3">
+            </div>
+        </ng-container>
+
+        <ng-container *ngIf="currentNc.origine === 'CLIENT'">
+            <div class="form-group">
+              <label>N° Lot Concerné <span class="text-red">*</span></label>
+              <input type="text" [(ngModel)]="currentNc.lotConcerne" class="custom-input" placeholder="e.g. LOT-A92B">
+            </div>
+            <div class="form-group">
+              <label>Procédure Urgence</label>
+              <select [(ngModel)]="currentNc.procedureType" class="custom-select">
+                <option value="8D">Procedure 8D</option>
+                <option value="QRQC">QRQC d'Urgence</option>
+                <option value="A3">A3 Report</option>
+              </select>
+            </div>
+        </ng-container>
+
+        <div class="form-group full-width">
+          <label>Description du Défaut / Problème</label>
+          <textarea [(ngModel)]="currentNc.description" (ngModelChange)="onDescriptionChange()" class="custom-input" rows="3" placeholder="Décrivez en détail la non-conformité..."></textarea>
+        </div>
+
+        <!-- AI SUGGESTIONS WIDGET (Premium Redesign) -->
+        <div class="ai-suggestion-box" *ngIf="isAnalyzing || aiSuggestion">
+          <div class="ai-header">
+            <div class="ai-icon-container" [ngClass]="{'analyzing': isAnalyzing}">
+              <i class="ph" [ngClass]="isAnalyzing ? 'ph-spinner-gap spin-icon' : 'ph-robot'"></i>
+            </div>
+            <h4>{{ isAnalyzing ? 'Analyse par Intelligence Artificielle en cours...' : 'Suggestions d\'Intelligence Artificielle (RCA)' }}</h4>
+          </div>
+          
+          <div class="ai-content" *ngIf="aiSuggestion">
+            <div class="ai-row">
+              <span class="ai-label"><i class="ph ph-target"></i> Cause Probable</span>
+              <div class="ai-value">{{ aiSuggestion.suggested_root_cause }}</div>
+            </div>
+            <div class="ai-row">
+              <span class="ai-label"><i class="ph ph-wrench"></i> Action Recommandée</span>
+              <div class="ai-value">{{ aiSuggestion.recommended_action || 'N/A' }}</div>
+            </div>
+            <div class="ai-row">
+              <span class="ai-label"><i class="ph ph-user-circle-plus"></i> Assigné Suggéré (Résolution la plus rapide)</span>
+              <div class="ai-value">{{ aiSuggestion.recommended_assignee || 'N/A' }}</div>
+            </div>
+          </div>
+
+          <div class="ai-footer" *ngIf="aiSuggestion">
+            <div class="confidence-badge">
+              <i class="ph ph-check-circle"></i> Indice de Confiance: {{ aiSuggestion.confidence_score }}%
+            </div>
+            <button class="btn-apply-ai" (click)="applyAiSuggestion()">
+              <i class="ph ph-magic-wand"></i> Appliquer les Suggestions
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group full-width">
+          <label>Action Corrective</label>
+          <textarea [(ngModel)]="currentNc.actionCorrective" class="custom-input" rows="2" placeholder="Ex: Recalibration machine, remplacement de stock..."></textarea>
+        </div>
+
+        <div class="form-group" *ngIf="currentNc.origine === 'CLIENT' && currentNc.statut === 'CLOTUREE'">
+          <label class="checkbox-container text-sm">
+             <input type="checkbox" [(ngModel)]="currentNc.valideeParClient">
+             Le client a-t-il validé formellement la clôture (8D signé) ?
+          </label>
+        </div>
+
+      </div>
+
+      <!-- FILE UPLOAD ZONE -->
+      <div class="upload-zone" [class.has-file]="selectedFileName || isEditing">
+        <label>Rapport PDF Détaillé (8D / Analyse) <span class="text-red" *ngIf="currentNc.origine === 'CLIENT'">*</span></label>
+        <div class="file-drop-area modern-drop-area" [class.border-red]="currentNc.origine === 'CLIENT' && !currentNc.reportPdfPath && !selectedFileName">
+          <input type="file" #fileInput class="file-input" (change)="onFileSelected($event)" accept=".pdf, .doc, .docx">
+          <div class="drop-msg" *ngIf="!selectedFileName && (!isEditing || !currentNc.reportPdfPath)"
+               (click)="fileInput.click()">
+            <i class="ph ph-upload-simple"></i>
+            <p><strong>Click to browse</strong> or drag a file here</p>
+            <span class="file-hint">Accepts PDF, Word. Required for Client claims.</span>
+          </div>
+          <div class="drop-msg file-selected" *ngIf="selectedFileName || (isEditing && currentNc.reportPdfPath)"
+               (click)="fileInput.click()" style="cursor: pointer;">
+            <div class="file-preview-icon">
+              <i class="ph ph-file-pdf text-red"></i>
+            </div>
+            <div class="file-preview-details">
+              <p class="file-name">{{ selectedFileName || currentNc.reportPdfPath }}</p>
+              <span class="change-text"><i class="ph ph-arrows-clockwise"></i> Click to replace file</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="closeModal()">Cancel</button>
+      <button class="btn-primary" (click)="saveNc()" [ngClass]="{'bg-red-gradient': currentNc.origine === 'CLIENT'}">
+        <i class="ph ph-floppy-disk"></i> {{ isEditing ? 'Save Changes' : (currentNc.origine === 'CLIENT' ? 'Declare Client NC' : 'Declare NC') }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF VIEWER MODAL -->
+<div class="modal-overlay pdf-modal" *ngIf="showPdfModal" (click)="closePdfModal()">
+  <div class="modal-content pdf-content glass-modal zoom-in" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <i class="ph ph-file-pdf text-red text-xl"></i>
+        <h2>NC Detailed Report Viewer</h2>
+      </div>
+      <div class="header-actions">
+        <!-- Allows downloading directly from PDF Viewer too -->
+        <button class="btn-outline btn-sm download-header-btn" (click)="downloadPdf(currentPreviewNc)">
+          <i class="ph ph-download-simple"></i> Download
+        </button>
+        <button class="close-btn" (click)="closePdfModal()"><i class="ph ph-x"></i></button>
+      </div>
+    </div>
+    <div class="modal-body pdf-body">
+      <iframe *ngIf="pdfUrlToView" [src]="pdfUrlToView" class="pdf-frame" frameborder="0"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- ASSIGN MODAL -->
+<div class="modal-overlay" *ngIf="showAssignModal" (click)="closeAssignModal()">
+  <div class="modal-content glass-modal zoom-in" style="max-width: 450px;" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <i class="ph ph-user-plus text-blue text-xl"></i>
+        <h2>Assigner Responsable</h2>
+      </div>
+      <button class="close-btn" (click)="closeAssignModal()"><i class="ph ph-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="text-sm text-muted mb-3">Assignez un responsable pour traiter la NC <strong>{{ workflowNc?.reference }}</strong>. Il recevra un email de notification.</p>
+      <div class="form-group full-width">
+        <label>Email du Responsable Assigné</label>
+        <input type="email" [(ngModel)]="assignEmailInput" class="custom-input" placeholder="prenom.nom@sagemcom.com">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="closeAssignModal()">Annuler</button>
+      <button class="btn-primary" (click)="submitAssign()"><i class="ph ph-paper-plane-tilt"></i> Assigner</button>
+    </div>
+  </div>
+</div>
+
+<!-- TREAT MODAL -->
+<div class="modal-overlay" *ngIf="showTreatModal" (click)="closeTreatModal()">
+  <div class="modal-content glass-modal zoom-in" style="max-width: 500px;" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <i class="ph ph-wrench text-orange text-xl"></i>
+        <h2>Soumettre Action Corrective</h2>
+      </div>
+      <button class="close-btn" (click)="closeTreatModal()"><i class="ph ph-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="text-sm text-muted mb-3">Saisissez l'action corrective appliquée pour la NC <strong>{{ workflowNc?.reference }}</strong>. Elle passera en attente de validation.</p>
+      <div class="form-group full-width">
+        <label>Détails de l'Action Corrective</label>
+        <textarea [(ngModel)]="actionCorrectiveInput" class="custom-input" rows="4" placeholder="Décrivez les actions menées..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="closeTreatModal()">Annuler</button>
+      <button class="btn-primary bg-orange-gradient" style="background: linear-gradient(135deg, #f97316, #ea580c); border:none;" (click)="submitTreat()"><i class="ph ph-check"></i> Soumettre pour Validation</button>
+    </div>
+  </div>
+</div>
