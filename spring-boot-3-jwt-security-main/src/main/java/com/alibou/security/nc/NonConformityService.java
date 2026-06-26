@@ -8,6 +8,7 @@ import com.alibou.security.user.UserRepository;
 import com.alibou.security.user.User;
 import com.alibou.security.user.Role;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,6 +24,35 @@ public class NonConformityService {
     private final EmailService emailService;
     private final UserRepository userRepository;
     private final NCAgentClient ncAgentClient;
+
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
+
+    private String buildHtmlTemplate(String title, String message, String ncReference, String actionUrl, String ctaText) {
+        return "<!DOCTYPE html>" +
+               "<html><head><style>" +
+               "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }" +
+               ".container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }" +
+               ".header { background-color: #00A3E0; color: #ffffff; padding: 25px; text-align: center; }" +
+               ".header h2 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 1px; }" +
+               ".content { padding: 30px; color: #333333; line-height: 1.6; }" +
+               ".content h3 { color: #005A9C; margin-top: 0; font-size: 20px; }" +
+               ".highlight { display: inline-block; background-color: #e6f2ff; color: #005A9C; padding: 5px 12px; border-radius: 15px; font-weight: 600; font-size: 14px; margin-bottom: 20px; border: 1px solid #b3d9ff; }" +
+               ".btn { display: inline-block; background-color: #00A3E0; color: #ffffff !important; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 25px; transition: background-color 0.3s; }" +
+               ".btn:hover { background-color: #0081b3; }" +
+               ".footer { background-color: #f9f9f9; padding: 15px; text-align: center; font-size: 12px; color: #888888; border-top: 1px solid #eeeeee; }" +
+               "</style></head><body>" +
+               "<div class='container'>" +
+               "<div class='header'><h2>Notification Sagemcom</h2></div>" +
+               "<div class='content'>" +
+               "<h3>" + title + "</h3>" +
+               (ncReference != null ? "<div class='highlight'>Réf: " + ncReference + "</div>" : "") +
+               "<p>" + message.replace("\n", "<br>") + "</p>" +
+               (actionUrl != null ? "<div style='text-align: center;'><a href='" + actionUrl + "' class='btn'>" + ctaText + "</a></div>" : "") +
+               "</div>" +
+               "<div class='footer'>Cet email est généré automatiquement par le système de gestion de la qualité Sagemcom. Merci de ne pas y répondre.</div>" +
+               "</div></body></html>";
+    }
 
     public List<NonConformity> getAll() {
         return repository.findAll();
@@ -78,10 +108,15 @@ public class NonConformityService {
         NonConformity saved = repository.save(existing);
         
         if (assigneeEmail != null && !assigneeEmail.isBlank()) {
-            emailService.sendEmail(assigneeEmail, 
-                "Vous avez été assigné à la Non-Conformité " + existing.getReference(), 
-                "Bonjour,\nVous êtes désormais responsable du traitement de la NC: " + existing.getReference() + 
-                "\nGravité: " + existing.getGravite() + "\nDescription: " + existing.getDescription());
+            String title = "Nouvelle assignation de Non-Conformité";
+            String message = "Bonjour,\nVous êtes désormais responsable du traitement de la NC: " + existing.getReference() + 
+                             "\n\n<b>Gravité:</b> " + existing.getGravite() + 
+                             "\n<b>Description:</b> " + existing.getDescription();
+            String html = buildHtmlTemplate(title, message, existing.getReference(), frontendUrl + "/non-conformites", "Traiter la Non-Conformité");
+            
+            emailService.sendHtmlEmail(assigneeEmail, 
+                "Action Requise : Vous avez été assigné à la Non-Conformité " + existing.getReference(), 
+                html);
         }
         return saved;
     }
@@ -94,9 +129,14 @@ public class NonConformityService {
         
         List<User> ingenieurs = userRepository.findByRole(Role.INGENIEUR_QUALITE);
         for (User u : ingenieurs) {
-            emailService.sendEmail(u.getEmail(), 
-                "Action corrective soumise pour la NC " + existing.getReference(), 
-                "L'utilisateur assigné (" + (existing.getAssigneeEmail() != null ? existing.getAssigneeEmail() : "Inconnu") + ") a soumis l'action suivante pour validation :\n\n" + actionCorrective);
+            String title = "Validation requise : Action corrective soumise";
+            String message = "L'utilisateur assigné (" + (existing.getAssigneeEmail() != null ? existing.getAssigneeEmail() : "Inconnu") + 
+                             ") a soumis l'action suivante pour validation :\n\n<i>" + actionCorrective + "</i>";
+            String html = buildHtmlTemplate(title, message, existing.getReference(), frontendUrl + "/non-conformites", "Valider l'action");
+            
+            emailService.sendHtmlEmail(u.getEmail(), 
+                "Validation Requise : Action corrective pour la NC " + existing.getReference(), 
+                html);
         }
             
         return saved;
@@ -109,10 +149,14 @@ public class NonConformityService {
         NonConformity saved = repository.save(existing);
         
         if (existing.getAssigneeEmail() != null && !existing.getAssigneeEmail().isBlank()) {
-             emailService.sendEmail(existing.getAssigneeEmail(), 
-                "Non-Conformité Clôturée: " + existing.getReference(), 
-                "Bonjour,\nL'action corrective pour la NC " + existing.getReference() + 
-                " a été validée avec succès. La NC est désormais clôturée.");
+            String title = "Non-Conformité Clôturée";
+            String message = "Bonjour,\nL'action corrective pour la NC " + existing.getReference() + 
+                             " a été validée avec succès.\nLa Non-Conformité est désormais clôturée.";
+            String html = buildHtmlTemplate(title, message, existing.getReference(), frontendUrl + "/non-conformites", "Consulter l'historique");
+            
+             emailService.sendHtmlEmail(existing.getAssigneeEmail(), 
+                "Succès : Non-Conformité Clôturée (" + existing.getReference() + ")", 
+                html);
         }
         
         return saved;

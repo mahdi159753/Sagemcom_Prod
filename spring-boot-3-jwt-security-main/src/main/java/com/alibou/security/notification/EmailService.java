@@ -4,7 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+
+import jakarta.mail.internet.MimeMessage;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +32,27 @@ public class EmailService {
             log.info("Email envoyé avec succès.");
         } catch (Exception e) {
             log.warn("Erreur lors de l'envoi de l'email : {}", e.getMessage());
+        }
+    }
+
+    public void sendHtmlEmail(String to, String subject, String htmlBody) {
+        log.info("============== ENVOI DE REEL EMAIL (HTML) ==============");
+        log.info("TO: {}", to);
+        log.info("SUBJECT: {}", subject);
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlBody, true); // true indicates HTML
+            helper.setFrom("sagemcom.noreply@gmail.com");
+            
+            mailSender.send(message); 
+            log.info("Email HTML envoyé avec succès.");
+        } catch (Exception e) {
+            log.warn("Erreur lors de l'envoi de l'email HTML : {}", e.getMessage());
         }
     }
 }
