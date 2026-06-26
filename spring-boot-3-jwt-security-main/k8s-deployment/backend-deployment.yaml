@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: mahdi159753/backend-sagem:latest
+          image: mahdibensouissi26/backend-sagem:latest
           imagePullPolicy: Always
           env:
             - name: SPRING_DATASOURCE_URL

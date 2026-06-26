@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: predictive-agent
-          image: mahdi159753/predictive-agent:latest
+          image: mahdibensouissi26/predictive-agent:latest
           imagePullPolicy: Always
           env:
             # El GROQ_API_KEY mte3na - jey men Kubernetes Secret

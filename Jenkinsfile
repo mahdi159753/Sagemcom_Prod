@@ -4,9 +4,9 @@ pipeline {
     environment {
         // Définir les variables pour le registre DockerHub
         DOCKERHUB_CREDENTIALS = 'dockerhub-credentials'
-        DOCKER_IMAGE_FRONT = 'mahdi159753/frontend-sagem'
-        DOCKER_IMAGE_BACK = 'mahdi159753/backend-sagem'
-        DOCKER_IMAGE_AI = 'mahdi159753/predictive-agent'
+        DOCKER_IMAGE_FRONT = 'mahdibensouissi26/frontend-sagem'
+        DOCKER_IMAGE_BACK = 'mahdibensouissi26/backend-sagem'
+        DOCKER_IMAGE_AI = 'mahdibensouissi26/predictive-agent'
     }
 
     stages {

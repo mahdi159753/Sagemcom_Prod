@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: mahdi159753/frontend-sagem:latest
+          image: mahdibensouissi26/frontend-sagem:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 80
