@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
         - name: backend
-          image: backend-sagem:latest
-          imagePullPolicy: IfNotPresent
+          image: mahdi159753/backend-sagem:latest
+          imagePullPolicy: Always
           env:
             - name: SPRING_DATASOURCE_URL
               value: jdbc:postgresql://postgres-service:5432/jwt_security
