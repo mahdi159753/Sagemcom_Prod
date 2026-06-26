@@ -49,8 +49,8 @@ predictive:
   agent:
     url: ${PREDICTIVE_AGENT_URL:http://localhost:8000}
 
-# Frontend Base URL
+# Frontend Base URL (Exposé via Ngrok)
 app:
   frontend:
-    url: ${FRONTEND_URL:http://localhost:4200}
+    url: ${FRONTEND_URL:https://thwarting-envision-overstuff.ngrok-free.dev}
 

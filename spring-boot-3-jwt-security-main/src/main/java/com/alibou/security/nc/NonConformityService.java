@@ -30,28 +30,37 @@ public class NonConformityService {
 
     private String buildHtmlTemplate(String title, String message, String ncReference, String actionUrl, String ctaText) {
         return "<!DOCTYPE html>" +
-               "<html><head><style>" +
-               "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }" +
-               ".container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }" +
-               ".header { background-color: #00A3E0; color: #ffffff; padding: 25px; text-align: center; }" +
-               ".header h2 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 1px; }" +
-               ".content { padding: 30px; color: #333333; line-height: 1.6; }" +
-               ".content h3 { color: #005A9C; margin-top: 0; font-size: 20px; }" +
-               ".highlight { display: inline-block; background-color: #e6f2ff; color: #005A9C; padding: 5px 12px; border-radius: 15px; font-weight: 600; font-size: 14px; margin-bottom: 20px; border: 1px solid #b3d9ff; }" +
-               ".btn { display: inline-block; background-color: #00A3E0; color: #ffffff !important; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 25px; transition: background-color 0.3s; }" +
-               ".btn:hover { background-color: #0081b3; }" +
-               ".footer { background-color: #f9f9f9; padding: 15px; text-align: center; font-size: 12px; color: #888888; border-top: 1px solid #eeeeee; }" +
+               "<html><head><meta charset='UTF-8'>" +
+               "<style>" +
+               "body { font-family: 'Inter', 'Segoe UI', sans-serif; background-color: #f0f2f5; margin: 0; padding: 40px 0; color: #1a1a1a; }" +
+               ".wrapper { width: 100%; max-width: 650px; margin: 0 auto; }" +
+               ".container { background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); border: 1px solid #e1e4e8; }" +
+               ".header { background: linear-gradient(135deg, #0056b3 0%, #007bff 100%); padding: 35px 40px; text-align: left; }" +
+               ".header h2 { margin: 0; font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px; }" +
+               ".header p { margin: 8px 0 0 0; color: rgba(255,255,255,0.85); font-size: 15px; }" +
+               ".content { padding: 40px; line-height: 1.7; }" +
+               ".content h3 { color: #111827; margin-top: 0; font-size: 22px; font-weight: 600; }" +
+               ".badge { display: inline-block; background-color: #eff6ff; color: #1d4ed8; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 15px; margin-bottom: 25px; border: 1px solid #bfdbfe; box-shadow: 0 2px 5px rgba(29, 78, 216, 0.05); }" +
+               ".message-box { background-color: #f8fafc; border-left: 4px solid #007bff; padding: 20px; border-radius: 0 8px 8px 0; margin: 25px 0; color: #334155; }" +
+               ".btn-container { text-align: center; margin-top: 35px; margin-bottom: 15px; }" +
+               ".btn { display: inline-block; background: linear-gradient(to right, #0056b3, #007bff); color: #ffffff !important; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3); }" +
+               ".btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0, 123, 255, 0.4); }" +
+               ".footer { background-color: #f8fafc; padding: 25px 40px; text-align: center; font-size: 13px; color: #64748b; border-top: 1px solid #e2e8f0; }" +
+               ".footer b { color: #475569; }" +
                "</style></head><body>" +
-               "<div class='container'>" +
-               "<div class='header'><h2>Notification Sagemcom</h2></div>" +
+               "<div class='wrapper'><div class='container'>" +
+               "<div class='header'>" +
+               "<h2>SAGEMCOM</h2>" +
+               "<p>Système de Gestion de Qualité</p>" +
+               "</div>" +
                "<div class='content'>" +
                "<h3>" + title + "</h3>" +
-               (ncReference != null ? "<div class='highlight'>Réf: " + ncReference + "</div>" : "") +
-               "<p>" + message.replace("\n", "<br>") + "</p>" +
-               (actionUrl != null ? "<div style='text-align: center;'><a href='" + actionUrl + "' class='btn'>" + ctaText + "</a></div>" : "") +
+               (ncReference != null ? "<div class='badge'>Réf: " + ncReference + "</div>" : "") +
+               "<div class='message-box'>" + message.replace("\n", "<br>") + "</div>" +
+               (actionUrl != null ? "<div class='btn-container'><a href='" + actionUrl + "' class='btn'>" + ctaText + "</a></div>" : "") +
                "</div>" +
-               "<div class='footer'>Cet email est généré automatiquement par le système de gestion de la qualité Sagemcom. Merci de ne pas y répondre.</div>" +
-               "</div></body></html>";
+               "<div class='footer'>Cet email est généré automatiquement par le portail <b>Sagemcom Quality Control</b>.<br>Veuillez ne pas répondre à ce message.</div>" +
+               "</div></div></body></html>";
     }
 
     public List<NonConformity> getAll() {

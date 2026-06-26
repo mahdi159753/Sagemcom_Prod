@@ -2,6 +2,7 @@ package com.alibou.security.notification;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -16,6 +17,9 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
+    @Value("${spring.mail.username:sagemcom.noreply@gmail.com}")
+    private String fromEmail;
+
     public void sendEmail(String to, String subject, String body) {
         log.info("============== ENVOI DE REEL EMAIL ==============");
         log.info("TO: {}", to);
@@ -26,7 +30,7 @@ public class EmailService {
             message.setTo(to);
             message.setSubject(subject);
             message.setText(body);
-            message.setFrom("sagemcom.noreply@gmail.com");
+            message.setFrom(fromEmail);
             
             mailSender.send(message); 
             log.info("Email envoyé avec succès.");
@@ -47,7 +51,7 @@ public class EmailService {
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlBody, true); // true indicates HTML
-            helper.setFrom("sagemcom.noreply@gmail.com");
+            helper.setFrom(fromEmail);
             
             mailSender.send(message); 
             log.info("Email HTML envoyé avec succès.");
