@@ -17,14 +17,14 @@ pipeline {
             }
         }
 
-        stage('Tests Back-end (Maven)') {
+        stage('Build Back-end (Maven)') {
             steps {
-                echo 'Exécution des tests Java...'
+                echo 'Compilation du code Java (sans tests - pas de DB dans Jenkins)...'
                 dir('spring-boot-3-jwt-security-main') {
                     // Rend le script maven exécutable
                     sh 'chmod +x mvnw'
-                    // On compile et on lance les tests
-                    sh './mvnw test'
+                    // On compile et on package sans lancer les tests
+                    sh './mvnw package -DskipTests'
                 }
             }
         }
